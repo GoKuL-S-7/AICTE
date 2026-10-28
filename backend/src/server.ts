@@ -30,10 +30,17 @@ const mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/aicte_uni
 
 app.set("trust proxy", 1);
 
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+
+const allowedOrigins = [
+  "https://aicte-lime.vercel.app",
+  ...(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean),
+];
+
+console.log("Allowed frontend origins:", allowedOrigins);
+
 
 app.use(
   cors({
