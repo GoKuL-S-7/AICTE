@@ -30,10 +30,11 @@ router.get("/csrf-token", (req: Request, res: Response) => {
   if (!req.session.csrfToken) {
     req.session.csrfToken = crypto.randomBytes(24).toString("hex");
   }
+  const isProduction = process.env.NODE_ENV === "production";
   res.cookie("XSRF-TOKEN", req.session.csrfToken, {
     httpOnly: false,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: isProduction ? "none" : "lax",
+    secure: isProduction,
     path: "/",
   });
   return res.json({ csrfToken: req.session.csrfToken });
@@ -193,10 +194,11 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
       req.session.role = user.role;
       req.session.csrfToken = csrfToken;
 
+      const isProd = process.env.NODE_ENV === "production";
       res.cookie("XSRF-TOKEN", csrfToken, {
         httpOnly: false,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+        sameSite: isProd ? "none" : "lax",
+        secure: isProd,
         path: "/",
       });
 
@@ -340,8 +342,19 @@ router.post("/logout", (req: Request, res: Response) => {
       console.error("Session destroy error", err);
       return res.status(500).json({ message: "Logout failed" });
     }
-    res.clearCookie("connect.sid");
-    res.clearCookie("XSRF-TOKEN");
+    const isProd = process.env.NODE_ENV === "production";
+    res.clearCookie("connect.sid", {
+      httpOnly: true,
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd,
+      path: "/",
+    });
+    res.clearCookie("XSRF-TOKEN", {
+      httpOnly: false,
+      sameSite: isProd ? "none" : "lax",
+      secure: isProd,
+      path: "/",
+    });
     return res.json({ message: "Logged out" });
   });
 });

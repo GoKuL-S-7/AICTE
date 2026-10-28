@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
@@ -30,30 +30,30 @@ const mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/aicte_uni
 
 app.set("trust proxy", 1);
 
-
-const allowedOrigins = [
-  "https://aicte-lime.vercel.app",
-  ...(process.env.FRONTEND_URL || "")
-    .split(",")
-    .map((origin) => origin.trim().replace(/\/$/, ""))
-    .filter(Boolean),
-];
-
-console.log("Allowed frontend origins:", allowedOrigins);
-
+const getAllowedOrigins = () => {
+  return [
+    "https://aicte-lime.vercel.app",
+    ...(process.env.FRONTEND_URL || "http://localhost:3000")
+      .split(",")
+      .map((o) => o.trim().replace(/\/$/, ""))
+      .filter(Boolean),
+  ];
+};
 
 app.use(
   cors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin) return callback(null, true);
+      const origins = getAllowedOrigins();
+      const domainSuffix = process.env.ALLOWED_DOMAIN_SUFFIX || ".vercel.app";
       if (
-        allowedOrigins.includes(origin) ||
+        origins.includes(origin) ||
         (!isProduction && origin.startsWith("http://localhost:")) ||
-        (process.env.ALLOWED_DOMAIN_SUFFIX && origin.endsWith(process.env.ALLOWED_DOMAIN_SUFFIX))
+        (domainSuffix && origin.endsWith(domainSuffix))
       ) {
         return callback(null, true);
       }
-      return callback(new Error("Origin not allowed by CORS"));
+      return callback(null, false);
     },
     credentials: true,
   })
