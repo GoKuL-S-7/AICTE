@@ -24,6 +24,7 @@ import { UPLOAD_DIR } from "../middleware/upload";
 import mongoose from "mongoose";
 import { isEmailConfigured, sendMaturityReminderEmail } from "../services/emailService";
 import { generateApprovalLetterPdf } from "../services/pdfService";
+import { getReleaseDocuments } from "../utils/releaseDocuments";
 
 export const MANDATORY_DOCUMENTS = [
   { id: "land_docs", code: "DOC-01", name: "Land Ownership Documents / Registered Sale/Lease Deed", description: "Clear title deed registered in the name of the Applicant Society/Trust." },
@@ -87,6 +88,7 @@ router.get("/dashboard", requireAuth, requireRole("AICTE_FD_EMPLOYEE"), async (r
     const verifiedApplications = await Application.countDocuments({ status: "APPROVED" });
     const rejectedApplications = await Application.countDocuments({ status: "REJECTED" });
     const pendingReleaseRequests = await ReleaseRequest.countDocuments({ status: { $in: ["PENDING", "SUBMITTED", "Pending"] } });
+    const pendingDeposits = await Payment.countDocuments({ status: { $in: ["SUBMITTED", "PENDING_VERIFICATION"] } });
 
     // Calculate Alive FDRs from verified, active deposits
     const verifiedPayments = await Payment.find({ status: "VERIFIED", isActive: { $ne: false } });
@@ -101,6 +103,7 @@ router.get("/dashboard", requireAuth, requireRole("AICTE_FD_EMPLOYEE"), async (r
       verifiedApplications,
       rejectedApplications,
       pendingReleaseRequests,
+      pendingDeposits,
       aliveFdrsCount,
       aliveTotalAmount,
     });
@@ -778,6 +781,34 @@ router.get(
   }
 );
 
+router.get(
+  "/application/:id/letter-preview",
+  requireAuth,
+  requireRole("AICTE_FD_EMPLOYEE"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const app = await Application.findOne(idOrQuery(id, "applicationId"));
+      if (!app) {
+        return res.status(404).json({ message: "Application record not found." });
+      }
+      if (app.letterText) {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        return res.send(
+          `<pre style="white-space:pre-wrap;font-family:Georgia,serif;padding:24px;">${String(app.letterText)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")}</pre>`
+        );
+      }
+      return res.redirect(`/api/fd/application/${encodeURIComponent(String(id))}/letter-pdf`);
+    } catch (err: any) {
+      console.error("FD application letter preview error:", err);
+      return res.status(500).json({ message: "Failed to preview letter" });
+    }
+  }
+);
+
 // Submit and send Deposit Details (Post-LoA / Post-EoA) — 3 Manual Input Fields: Amount, Account No, Deadline
 router.post("/application/:id/deposit-details", requireAuth, requireRole("AICTE_FD_EMPLOYEE"), async (req, res) => {
   const { bankAccountNumber, depositAmount, depositDeadline, bankName, branchName, ifscCode, paymentInstructions } = req.body;
@@ -941,6 +972,7 @@ router.get("/deposits", requireAuth, requireRole("AICTE_FD_EMPLOYEE"), async (re
         bankEmployeeContact: p.bankEmployeeContact || "—",
         status: p.status === "VERIFIED" ? "Verified" : (p.status === "REJECTED" ? "Not Verified" : "Pending"),
         isActive: p.isActive !== false,
+        releasedAt: p.releasedAt || null,
         remarks: p.remarks || "",
         documents,
         receiptPath: p.receiptPath || "",
@@ -1153,24 +1185,6 @@ router.get("/alive-records", requireAuth, requireRole("AICTE_FD_EMPLOYEE"), asyn
   }
 });
 
-// Helper to format documents for release requests (4 Mandatory Documents)
-function getReleaseDocuments(r: any) {
-  if (Array.isArray(r.documentItems) && r.documentItems.length > 0) {
-    return r.documentItems;
-  }
-  const defaultNames = ["EoA", "Affidavit", "Release Approval Letter", "FDR Copy"];
-  const docFiles = Array.isArray(r.documents) ? r.documents : [];
-  return defaultNames.map((name, idx) => ({
-    id: `doc-${idx + 1}`,
-    name,
-    type: "PDF",
-    size: "1.2 MB",
-    uploadDate: r.submissionDate || r.createdAt,
-    status: "Pending",
-    file: docFiles[idx] || `${name.toLowerCase().replace(/\s+/g, "_")}.pdf`,
-    remarks: "",
-  }));
-}
 
 // ==============================================================================
 // 5. RELEASE APPLICATIONS & AUTOMATED PGRC / VIGILANCE CLEARANCE
@@ -1377,11 +1391,17 @@ router.post("/release/:id/verify-document", requireAuth, requireRole("AICTE_FD_E
     let targetDoc: any = null;
 
     documents = documents.map((d: any) => {
-      if (d.id === docId) {
+      const matches =
+        d.id === docId ||
+        d.key === docId ||
+        String(d.name || "").toLowerCase() === String(docId).toLowerCase();
+      if (matches) {
         targetDoc = d;
         return {
           ...d,
           status,
+          storedStatus: status,
+          displayStatus: status === "Verified" ? "Verified" : "Rejected",
           remarks: status === "Not Verified" ? String(remarks).trim() : "",
           verifiedBy: req.session.userId,
           verifiedAt: new Date(),
@@ -1425,7 +1445,7 @@ router.post("/release/:id/verify-document", requireAuth, requireRole("AICTE_FD_E
             ? `Your release application document "${targetDoc.name}" has been verified.`
             : `Your release application document "${targetDoc.name}" requires correction: ${String(remarks).trim()}`,
         type: status === "Verified" ? "DOCUMENT_VERIFIED" : "DOCUMENT_NOT_VERIFIED",
-        link: "/institution/dashboard",
+        link: "/institution/submit/release",
         metadata: {
           releaseRequestId: rr.releaseRequestId,
           docId,
@@ -1518,6 +1538,15 @@ router.post("/release/:id/decision", requireAuth, requireRole("AICTE_FD_EMPLOYEE
       rr.reviewedAt = new Date();
       await rr.save();
 
+      if (rr.fdrReference) {
+        await Payment.updateMany(
+          {
+            $or: [{ referenceNumber: rr.fdrReference }, { paymentId: rr.fdrReference }],
+          },
+          { $set: { isActive: false, releasedAt: new Date() } }
+        );
+      }
+
       // Notify institution of release approval
       try {
         await Notification.create({
@@ -1526,7 +1555,7 @@ router.post("/release/:id/decision", requireAuth, requireRole("AICTE_FD_EMPLOYEE
           title: "Release Application Approved",
           message: `Your FDR Release Application (Ref: ${rr.fdrReference}) has been approved by the Finance Division.`,
           type: "RELEASE_APPROVED",
-          link: "/institution/dashboard",
+          link: "/institution/submit/release",
         });
       } catch (nErr) {
         console.warn("Notification error:", nErr);
@@ -1550,7 +1579,7 @@ router.post("/release/:id/decision", requireAuth, requireRole("AICTE_FD_EMPLOYEE
           title: "Release Application Declined",
           message: `Your FDR Release Application (Ref: ${rr.fdrReference}) was declined. Remarks: ${String(declineRemarks).trim()}`,
           type: "RELEASE_DECLINED",
-          link: "/institution/dashboard",
+          link: "/institution/submit/release",
         });
       } catch (nErr) {
         console.warn("Notification error:", nErr);

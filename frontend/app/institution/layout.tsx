@@ -224,7 +224,7 @@ export default function InstitutionLayout({ children }: { children: React.ReactN
         </div>
       </header>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 w-full min-h-0">
         {/* Sidebar Navigation - only shown after onboarding */}
         {pathname !== "/institution/complete-profile" && (
           <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col shrink-0 border-r border-slate-800 select-none sticky top-[61px] h-[calc(100vh-61px)] justify-between">
@@ -423,7 +423,7 @@ export default function InstitutionLayout({ children }: { children: React.ReactN
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 min-w-0 w-full p-6 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-slate-500 font-medium">
               Loading institution workspace...

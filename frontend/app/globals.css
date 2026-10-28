@@ -38,6 +38,21 @@ body {
   color: #0f172a !important;
 }
 
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="submit"]):not([type="button"]),
+select,
+textarea {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1.5px solid #94a3b8;
+  border-radius: 0.375rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
 .btn-primary {
   width: 100%;
   padding: 0.6875rem 1.25rem;

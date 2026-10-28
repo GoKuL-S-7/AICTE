@@ -17,6 +17,7 @@ export interface IReleaseRequest extends Document {
   depositDetails: string;
   reason: string;
   documents: string[]; // file paths
+  documentDetails?: Record<string, string>;
   documentItems?: any[];
   documentVerificationResults?: any;
   documentRemarks?: any;
@@ -54,6 +55,7 @@ const ReleaseRequestSchema = new Schema<IReleaseRequest>(
     depositDetails: { type: Schema.Types.Mixed, default: "" },
     reason: { type: String, default: "FDR Release Request" },
     documents: [{ type: String }],
+    documentDetails: { type: Schema.Types.Mixed },
     documentItems: { type: Schema.Types.Mixed },
     documentVerificationResults: { type: Schema.Types.Mixed },
     documentRemarks: { type: Schema.Types.Mixed },

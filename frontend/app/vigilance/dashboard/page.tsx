@@ -62,6 +62,7 @@ export default function VigilanceDashboardPage() {
   const [csrfToken, setCsrfToken] = useState<string>("");
   const [complaints, setComplaints] = useState<ComplaintItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string>("");
   const [activeTab, setActiveTab] = useState<TabKey>("NEW");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [previewComplaint, setPreviewComplaint] = useState<ComplaintItem | null>(null);
@@ -105,9 +106,14 @@ export default function VigilanceDashboardPage() {
       if (res.ok) {
         const data = await res.json();
         setComplaints(Array.isArray(data) ? data : []);
+        setLoadError("");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setLoadError(err.message || `Failed to load Vigilance complaints (HTTP ${res.status}).`);
       }
     } catch (err: any) {
       console.error("Error loading Vigilance complaints:", err);
+      setLoadError(err.message || "Failed to load Vigilance complaints from the backend.");
     } finally {
       setLoading(false);
     }
@@ -344,6 +350,12 @@ export default function VigilanceDashboardPage() {
           </button>
         </div>
       </header>
+
+      {loadError && (
+        <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-red-50 text-red-800 border border-red-200 text-sm font-medium">
+          {loadError}
+        </div>
+      )}
 
       <div className="flex flex-1">
         {/* Navy-Blue Left Sidebar (Module 4 Requirements) */}

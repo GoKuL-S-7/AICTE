@@ -10,6 +10,14 @@ interface DocUpload {
   fileUrl: string;
 }
 
+interface ReleaseDocStatus {
+  id?: string;
+  name?: string;
+  status?: string;
+  displayStatus?: string;
+  remarks?: string;
+}
+
 interface ReleaseRequest {
   _id: string;
   releaseRequestId: string;
@@ -17,6 +25,7 @@ interface ReleaseRequest {
   reason: string;
   status: string;
   createdAt: string;
+  documents?: ReleaseDocStatus[] | Record<string, string> | string[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -28,14 +37,45 @@ const STATUS_COLORS: Record<string, string> = {
 
 const RELEASE_DOCS = [
   { key: "releaseLetter", label: "Release Letter", icon: "📜", description: "Official release letter from the institution/management requesting FDR release." },
-  { key: "eoa", label: "Extension of Approval (EoA)", icon: "📋", description: "Latest valid EoA letter issued by AICTE for the institution." },
+  { key: "fdrCopy", label: "FD Receipt", icon: "🏦", description: "Attested photocopy of the Fixed Deposit Receipt to be released." },
   { key: "affidavit", label: "Affidavit", icon: "⚖️", description: "Duly notarized affidavit as per AICTE prescribed format." },
-  { key: "fdrCopy", label: "FDR Copy", icon: "🏦", description: "Attested photocopy of the Fixed Deposit Receipt to be released." },
+  { key: "eoa", label: "EoA", icon: "📋", description: "Latest valid Extension of Approval letter issued by AICTE." },
 ];
+
+const STATUS_ORDER = ["Release Letter", "FD Receipt", "Affidavit", "EoA"];
+
+function documentStatusRows(request: ReleaseRequest): Array<{ name: string; status: string; remarks?: string }> {
+  const docs = request.documents;
+  const byName = new Map<string, { status: string; remarks?: string }>();
+  if (Array.isArray(docs)) {
+    for (const d of docs) {
+      if (!d || typeof d === "string") continue;
+      const name = d.name || "";
+      byName.set(name, {
+        status: d.displayStatus || d.status || "Pending Verification",
+        remarks: d.remarks,
+      });
+    }
+  }
+  return STATUS_ORDER.map((name) => {
+    const found = byName.get(name);
+    const raw = found?.status || "Pending";
+    const normalized =
+      raw === "Verified" || raw === "Rejected" || raw === "Pending Verification"
+        ? raw
+        : raw === "Not Verified"
+        ? "Rejected"
+        : raw === "Pending"
+        ? "Pending Verification"
+        : raw;
+    return { name, status: normalized, remarks: found?.remarks };
+  });
+}
 
 export default function ReleaseApplicationPage() {
   const [csrfToken, setCsrfToken] = useState("");
   const [releases, setReleases] = useState<ReleaseRequest[]>([]);
+  const [listError, setListError] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -57,8 +97,16 @@ export default function ReleaseApplicationPage() {
         const cr = await fetch(`${apiBase}/auth/csrf-token`, { credentials: "include" });
         if (cr.ok) setCsrfToken((await cr.json()).csrfToken);
         const rr = await fetch(`${apiBase}/institution/release-requests`, { credentials: "include" });
-        if (rr.ok) setReleases(await rr.json());
-      } catch (e) { console.error(e); }
+        if (!rr.ok) {
+          const err = await rr.json().catch(() => ({}));
+          setListError(err.message || "Failed to load release application status from the backend.");
+          return;
+        }
+        setListError("");
+        setReleases(await rr.json());
+      } catch (e) {
+        setListError("Failed to load release application status. Check that the backend is running.");
+      }
     }
     load();
   }, []);
@@ -130,7 +178,7 @@ export default function ReleaseApplicationPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="w-full max-w-none space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Release Application</h1>
         <p className="text-slate-500 text-sm mt-1">Submit a formal request to release the Fixed Deposit Receipt (FDR) held with AICTE.</p>
@@ -139,6 +187,11 @@ export default function ReleaseApplicationPage() {
       {msg && (
         <div className={`px-4 py-3 rounded-lg text-sm font-medium ${msg.type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
           {msg.type === "success" ? "✅" : "❌"} {msg.text}
+        </div>
+      )}
+      {listError && (
+        <div className="px-4 py-3 rounded-lg text-sm font-medium bg-red-50 text-red-800 border border-red-200">
+          {listError}
         </div>
       )}
 
@@ -260,17 +313,45 @@ export default function ReleaseApplicationPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {releases.map(r => (
-                  <tr key={r._id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-mono text-xs text-slate-600">{r.releaseRequestId}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-800">{r.fdrReference}</td>
-                    <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{r.reason}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[r.status] || "bg-slate-100 text-slate-700"}`}>
-                        {r.status?.replace(/_/g, " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{new Date(r.createdAt).toLocaleDateString("en-IN")}</td>
-                  </tr>
+                  <React.Fragment key={r._id}>
+                    <tr className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{r.releaseRequestId}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">{r.fdrReference}</td>
+                      <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{r.reason}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[r.status] || "bg-slate-100 text-slate-700"}`}>
+                          {r.status?.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{new Date(r.createdAt).toLocaleDateString("en-IN")}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={5} className="px-4 pb-4 pt-0">
+                        <div className="text-xs font-semibold text-slate-600 mb-2 mt-1">Document verification status</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {documentStatusRows(r).map((doc) => {
+                            const tone =
+                              doc.status === "Verified"
+                                ? "border-green-400 bg-green-50 text-green-800"
+                                : doc.status === "Rejected"
+                                ? "border-red-400 bg-red-50 text-red-800"
+                                : "border-amber-300 bg-amber-50 text-amber-800";
+                            return (
+                              <div key={doc.name} className={`rounded-lg border-2 px-3 py-2 ${tone}`}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-slate-800">{doc.name}</span>
+                                  <span className="text-xs font-bold">{doc.status}</span>
+                                </div>
+                                {doc.remarks ? (
+                                  <div className="text-[11px] text-slate-600 mt-1">Remarks: {doc.remarks}</div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

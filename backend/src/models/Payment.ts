@@ -20,6 +20,7 @@ export interface IPayment extends Document {
   bankEmployeeDesignation?: string;
   bankEmployeeContact?: string;
   isActive?: boolean;
+  releasedAt?: Date;
   remarks?: string;
   documents?: any[];
   verificationLetter?: any;
@@ -57,6 +58,7 @@ const PaymentSchema = new Schema<IPayment>(
     bankEmployeeDesignation: { type: String },
     bankEmployeeContact: { type: String },
     isActive: { type: Boolean, default: true },
+    releasedAt: { type: Date },
     remarks: { type: String, default: "" },
     documents: { type: Schema.Types.Mixed },
     verificationLetter: { type: Schema.Types.Mixed },

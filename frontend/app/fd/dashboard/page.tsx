@@ -32,6 +32,14 @@ import {
 } from "lucide-react";
 import "../fd-portal.css";
 import LogoutModal from "../../components/LogoutModal";
+import {
+  PendingVerificationView,
+  ReleasedFdsView,
+  RejectedFormsView,
+  pendingRows,
+  rejectedRows,
+  releasedFdRows,
+} from "./RecordTables";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n || 0);
@@ -95,9 +103,14 @@ const renderComplianceBadge = (status: string) => {
 // ── Sidebar Navigation ────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "pending-verification", label: "Pending Verification", icon: FileCheck },
   { id: "approval-applications", label: "Approval Seeking Applications", icon: FileCheck },
   { id: "deposit-records", label: "Deposit Records", icon: Landmark },
+  { id: "alive-records", label: "Alive FDs", icon: HeartPulse },
+  { id: "released-fds", label: "Released FDs", icon: Landmark },
+  { id: "rejected-forms", label: "Rejected Forms", icon: XCircle },
   { id: "release-applications", label: "Release Applications", icon: FileOutput },
+  { id: "compliance-screening", label: "Compliance Status", icon: ShieldAlert },
 ];
 
 export default function FDEmployeePortal() {
@@ -109,6 +122,7 @@ export default function FDEmployeePortal() {
 
   // Server data from MongoDB
   const [loading, setLoading] = useState<boolean>(true);
+  const [dataError, setDataError] = useState<string>("");
   const [stats, setStats] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [deposits, setDeposits] = useState<any[]>([]);
@@ -210,6 +224,20 @@ export default function FDEmployeePortal() {
         apiGet("/api/fd/compliance-status"),
         apiGet("/api/fd/badge-counts"),
       ]);
+      const labels = [
+        "dashboard",
+        "applications",
+        "deposits",
+        "alive records",
+        "release applications",
+        "notifications",
+        "compliance status",
+        "badge counts",
+      ];
+      const failures = results
+        .map((r, i) => (r.status === "rejected" ? `${labels[i]}: ${r.reason?.message || "request failed"}` : null))
+        .filter(Boolean) as string[];
+      setDataError(failures.length ? `Failed to load ${failures.join("; ")}` : "");
 
       if (results[0].status === "fulfilled") setStats(results[0].value);
       if (results[1].status === "fulfilled") setApplications(results[1].value);
@@ -221,6 +249,7 @@ export default function FDEmployeePortal() {
       if (results[7].status === "fulfilled" && results[7].value) setBadgeCounts(results[7].value);
     } catch (err: any) {
       console.error("Failed loading portal data:", err);
+      setDataError(err.message || "Failed to load portal data from the backend.");
     } finally {
       setLoading(false);
     }
@@ -283,9 +312,7 @@ export default function FDEmployeePortal() {
     setActionMessage(null);
   };
 
-  const currentNav =
-    NAV_ITEMS.find((n) => n.id === activePage) ||
-    (activePage === "compliance-screening" ? { label: "Complaint Screening & Letters" } : activePage === "alive-records" ? { label: "Alive Records" } : { label: "Dashboard" });
+  const currentNav = NAV_ITEMS.find((n) => n.id === activePage) || { label: "Dashboard" };
 
   return (
     <div className="fd-portal-root">
@@ -293,7 +320,7 @@ export default function FDEmployeePortal() {
         {/* Mobile backdrop */}
         {mobileNavOpen && <div className="sidebar-overlay" onClick={() => setMobileNavOpen(false)} />}
 
-        {/* Sidebar — EXACTLY 5 items */}
+        {/* Sidebar */}
         <aside className={`sidebar ${mobileNavOpen ? "open" : ""}`}>
           <div className="sidebar-brand">
             <h2>AICTE FD Shield</h2>
@@ -400,6 +427,11 @@ export default function FDEmployeePortal() {
           </header>
 
           <main className="page-content">
+            {dataError && (
+              <div className="msg-error" style={{ marginBottom: 16 }}>
+                {dataError}
+              </div>
+            )}
             {actionMessage && (
               <div className={`msg-${actionMessage.type}`} style={{ marginBottom: 16 }}>
                 {actionMessage.text}
@@ -412,7 +444,38 @@ export default function FDEmployeePortal() {
                 stats={stats}
                 aliveCount={aliveData.aliveCount}
                 aliveAmount={aliveData.aliveTotalAmount}
+                pendingCount={pendingRows(applications, deposits, releaseRequests).length}
+                releasedCount={releasedFdRows(deposits, releaseRequests).length}
+                rejectedCount={rejectedRows(applications, deposits, releaseRequests).length}
+                loadError={dataError}
                 navigate={navigate}
+              />
+            )}
+
+            {activePage === "pending-verification" && (
+              <PendingVerificationView
+                applications={applications}
+                deposits={deposits}
+                releaseRequests={releaseRequests}
+                loadError={dataError}
+                navigate={navigate}
+              />
+            )}
+
+            {activePage === "released-fds" && (
+              <ReleasedFdsView
+                deposits={deposits}
+                releaseRequests={releaseRequests}
+                loadError={dataError}
+              />
+            )}
+
+            {activePage === "rejected-forms" && (
+              <RejectedFormsView
+                applications={applications}
+                deposits={deposits}
+                releaseRequests={releaseRequests}
+                loadError={dataError}
               />
             )}
 
@@ -769,11 +832,19 @@ function DashboardView({
   stats,
   aliveCount,
   aliveAmount,
+  pendingCount,
+  releasedCount,
+  rejectedCount,
+  loadError,
   navigate,
 }: {
   stats: any;
   aliveCount: number;
   aliveAmount: number;
+  pendingCount: number;
+  releasedCount: number;
+  rejectedCount: number;
+  loadError?: string;
   navigate: (page: string) => void;
 }) {
   return (
@@ -785,6 +856,11 @@ function DashboardView({
       </div>
       <h1 className="page-title">Dashboard</h1>
       <p className="page-subtitle">Welcome back — here is your real-time AICTE FDR Shield overview from MongoDB.</p>
+      {loadError && (
+        <div className="msg-error" style={{ marginBottom: 16 }}>
+          {loadError}
+        </div>
+      )}
 
       {/* Summary Cards — Clickable to Alive Records */}
       <div className="stats-grid">
@@ -844,6 +920,24 @@ function DashboardView({
 
         <div
           className="stat-card"
+          onClick={() => navigate("deposit-records")}
+          style={{ cursor: "pointer" }}
+          role="button"
+          tabIndex={0}
+          title="Click to review deposit records"
+        >
+          <div className="stat-icon accent">
+            <Landmark size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>{stats?.pendingDeposits || 0}</h4>
+            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Deposits</p>
+            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Review deposit records →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card"
           onClick={() => navigate("release-applications")}
           style={{ cursor: "pointer" }}
           role="button"
@@ -857,6 +951,57 @@ function DashboardView({
             <h4>{stats?.pendingReleaseRequests || 0}</h4>
             <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Release Requests</p>
             <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Review release requests →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card"
+          onClick={() => navigate("pending-verification")}
+          style={{ cursor: "pointer" }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="stat-icon warning">
+            <FileCheck size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>{pendingCount}</h4>
+            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Verification</p>
+            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Open pending table →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card"
+          onClick={() => navigate("released-fds")}
+          style={{ cursor: "pointer" }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="stat-icon success">
+            <Landmark size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>{releasedCount}</h4>
+            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Released FDs</p>
+            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>View released table →</span>
+          </div>
+        </div>
+
+        <div
+          className="stat-card"
+          onClick={() => navigate("rejected-forms")}
+          style={{ cursor: "pointer" }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="stat-icon danger">
+            <XCircle size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>{rejectedCount}</h4>
+            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Rejected Forms</p>
+            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>View rejected table →</span>
           </div>
         </div>
       </div>
@@ -2949,17 +3094,21 @@ function ReleaseApplicationsView({
                 </thead>
                 <tbody>
                   {docs.map((doc: any) => {
-                    const isVerified = doc.status === "Verified";
-                    const isNotVerified = doc.status === "Not Verified";
+                    const stored = doc.status === "Verified" ? "Verified" : doc.status === "Not Verified" ? "Not Verified" : "Pending";
+                    const display =
+                      doc.displayStatus ||
+                      (stored === "Verified" ? "Verified" : stored === "Not Verified" ? "Rejected" : "Pending Verification");
+                    const isVerified = stored === "Verified";
+                    const isNotVerified = stored === "Not Verified";
 
                     return (
-                      <tr key={doc.id}>
+                      <tr key={doc.id || doc.key}>
                         <td style={{ fontWeight: 500 }}>{doc.name}</td>
                         <td>{doc.type || "PDF"}</td>
                         <td>{doc.size || "1.2 MB"}</td>
                         <td>{fmtDate(doc.uploadDate)}</td>
                         <td>
-                          <span className={statusBadge(doc.status)}>{doc.status}</span>
+                          <span className={statusBadge(stored)}>{display}</span>
                           {doc.remarks && (
                             <span style={{ display: "block", fontSize: ".75rem", color: "var(--danger)", marginTop: 4 }}>
                               Remarks: {doc.remarks}
@@ -2976,7 +3125,7 @@ function ReleaseApplicationsView({
                                 <button
                                   className="btn btn-success btn-sm"
                                   disabled={isVerified}
-                                  onClick={() => handleVerifyDoc(req.id, doc.id, "Verified")}
+                                  onClick={() => handleVerifyDoc(req.id, doc.id || doc.key, "Verified")}
                                 >
                                   <Check size={14} /> Verify
                                 </button>
@@ -3025,7 +3174,7 @@ function ReleaseApplicationsView({
                                 <button
                                   className="btn btn-danger btn-sm"
                                   disabled={!docRemarksText.trim()}
-                                  onClick={() => handleVerifyDoc(req.id, doc.id, "Not Verified", docRemarksText.trim())}
+                                  onClick={() => handleVerifyDoc(req.id, doc.id || doc.key, "Not Verified", docRemarksText.trim())}
                                 >
                                   Confirm Not Verified
                                 </button>

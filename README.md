@@ -70,30 +70,42 @@ cp .env.example backend/.env
 Fill in your `MONGODB_URI`, `SESSION_SECRET`, and optional `GEMINI_API_KEY`.
 
 ### 3. Install Dependencies
+From the `unified-aicte-portal` directory:
 ```bash
-# Root & Backend
-cd backend
-npm install
-
-# Frontend
-cd ../frontend
-npm install
+npm run install:all
 ```
 
-### 4. Run Locally
-**Start Backend Server:**
+Or separately:
 ```bash
-cd backend
+npm install --prefix backend
+npm install --prefix frontend
+```
+
+### 4. Run Locally (integrated)
+From `unified-aicte-portal`:
+```bash
 npm run dev
-# Backend runs on http://localhost:5000 (or configured PORT)
 ```
 
-**Start Frontend Application:**
+This starts:
+- Backend API: http://localhost:5000
+- Frontend: http://localhost:3000
+- Health check: http://localhost:5000/api/health
+
+`GET http://localhost:5000/` returns API status JSON (the UI is served by the frontend, not the API root).
+
+**Individual processes (still supported):**
 ```bash
-cd frontend
-npm run dev
-# Frontend runs on http://localhost:3000
+npm run dev:backend
+npm run dev:frontend
 ```
+
+**Integration checks** (backend must already be running):
+```bash
+npm run test:integration
+```
+
+MongoDB must be running at `MONGODB_URI` (default `mongodb://127.0.0.1:27017/aicte_unified`).
 
 ---
 

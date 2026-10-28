@@ -1,16 +1,17 @@
-// src/middleware/errorHandler.ts
 import { Request, Response, NextFunction } from "express";
 
 export const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
   const statusCode = err.status || err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
+  if (statusCode >= 500) {
+    console.error("Unhandled request error", { statusCode, name: err?.name, code: err?.code });
+  }
+  const message =
+    statusCode >= 500
+      ? "Internal server error"
+      : err.message || "Request failed";
   res.status(statusCode).json({
     success: false,
-    error: {
-      status: statusCode,
-      message,
-      ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-    },
+    message,
+    code: statusCode >= 500 ? "INTERNAL_ERROR" : err.code || "REQUEST_FAILED",
   });
 };

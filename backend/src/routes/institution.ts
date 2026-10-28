@@ -20,6 +20,7 @@ import { connectDB } from "../db";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { upload, validateFileSignature, UPLOAD_DIR } from "../middleware/upload";
 import { generateApprovalLetterPdf } from "../services/pdfService";
+import { getReleaseDocuments } from "../utils/releaseDocuments";
 
 const router = Router();
 
@@ -328,6 +329,43 @@ router.get("/dashboard-overview", requireAuth, requireRole("INSTITUTION"), async
     $or: [{ institutionId: { $in: collegeIds } }, { collegeId: { $in: collegeIds } }],
   }).sort({ createdAt: -1 }).limit(5);
 
+  const rejectedApplicationsList = await Application.find({
+    collegeId: { $in: collegeIds },
+    status: "REJECTED",
+  }).sort({ updatedAt: -1 }).limit(20);
+  const rejectedPayments = await Payment.find({
+    collegeId: { $in: collegeIds },
+    status: "REJECTED",
+  }).sort({ updatedAt: -1 }).limit(20);
+  const rejectedReleases = await ReleaseRequest.find({
+    collegeId: { $in: collegeIds },
+    status: { $in: ["REJECTED", "Declined", "DECLINED"] },
+  }).sort({ updatedAt: -1 }).limit(20);
+
+  const rejectedForms = [
+    ...rejectedApplicationsList.map((item) => ({
+      id: item.applicationId,
+      formType: "Approval Seeking",
+      reference: item.applicationId,
+      remarks: (item as any).letterText || item.status,
+      rejectedAt: item.updatedAt,
+    })),
+    ...rejectedPayments.map((item) => ({
+      id: item.paymentId,
+      formType: "Payment Details",
+      reference: item.referenceNumber,
+      remarks: item.remarks || item.status,
+      rejectedAt: item.updatedAt,
+    })),
+    ...rejectedReleases.map((item) => ({
+      id: item.releaseRequestId,
+      formType: "Release Application",
+      reference: item.fdrReference || item.releaseRequestId,
+      remarks: item.declineRemarks || item.status,
+      rejectedAt: item.updatedAt,
+    })),
+  ].sort((a, b) => new Date(b.rejectedAt).getTime() - new Date(a.rejectedAt).getTime());
+
   return res.json({
     institution: ctx.institution,
     stats: {
@@ -344,6 +382,7 @@ router.get("/dashboard-overview", requireAuth, requireRole("INSTITUTION"), async
     },
     recentApplications,
     recentComplaints,
+    rejectedForms,
   });
 });
 
@@ -837,11 +876,20 @@ router.get("/release-requests", requireAuth, requireRole("INSTITUTION"), async (
   const ctx = await getSessionInstitution(req);
   if (!ctx) return res.status(404).json({ message: "Institution not found" });
 
+  const ids = getInstitutionIdentifiers(ctx);
   const requests = await ReleaseRequest.find({
-    $or: [{ collegeId: ctx.user.userId }, { collegeId: ctx.user._id.toString() }],
+    $or: [
+      { collegeId: { $in: ids } },
+      { institutionId: { $in: ids } },
+    ],
   }).sort({ createdAt: -1 });
 
-  return res.json(requests);
+  return res.json(
+    requests.map((r) => ({
+      ...r.toObject(),
+      documents: getReleaseDocuments(r),
+    }))
+  );
 });
 
 // POST /api/institution/release-request - submits release request with the 4 mandatory documents
@@ -863,19 +911,27 @@ router.post("/release-request", requireAuth, requireRole("INSTITUTION"), async (
   }
 
   const releaseRequestId = `REL-${Date.now()}-${Math.round(Math.random() * 1000)}`;
+  const documentItems = [
+    { id: "doc-1", key: "releaseLetter", name: "Release Letter", file: docs.releaseLetter, fileName: docs.releaseLetter, status: "Pending" },
+    { id: "doc-2", key: "fdReceipt", name: "FD Receipt", file: docs.fdrCopy, fileName: docs.fdrCopy, status: "Pending" },
+    { id: "doc-3", key: "affidavit", name: "Affidavit", file: docs.affidavit, fileName: docs.affidavit, status: "Pending" },
+    { id: "doc-4", key: "eoa", name: "EoA", file: docs.eoa, fileName: docs.eoa, status: "Pending" },
+  ];
   const releaseRequest = new ReleaseRequest({
-    collegeId: ctx.user.userId,
+    collegeId: ctx.institution?.collegeId || ctx.user.collegeId || ctx.user.userId,
+    institutionId: ctx.institution?._id?.toString(),
     releaseRequestId,
     fdrReference,
     depositDetails: depositDetails || `FDR: ${fdrReference}`,
     reason,
     documents: [docs.releaseLetter, docs.eoa, docs.affidavit, docs.fdrCopy],
+    documentDetails: docs,
+    documentItems,
     status: "SUBMITTED",
     isReviewed: false,
     submissionDate: new Date(),
   });
 
-  (releaseRequest as any).documentDetails = docs;
   await releaseRequest.save();
 
   return res.status(201).json({

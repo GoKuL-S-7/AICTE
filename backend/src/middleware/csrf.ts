@@ -15,7 +15,7 @@ export function csrfCookieMiddleware(req: Request, res: Response, next: NextFunc
     // Set cookie so frontend applications can read it and send back in x-csrf-token header
     res.cookie("XSRF-TOKEN", req.session.csrfToken, {
       httpOnly: false, // Accessible by frontend JS for CSRF header inclusion
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
     });

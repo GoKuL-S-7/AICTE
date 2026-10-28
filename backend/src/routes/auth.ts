@@ -127,16 +127,17 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
     }
 
     // 5. Password verification supporting genuine registered hash and alternate hash
-    let passwordMatch = false;
-    if (user.passwordHash) {
-      passwordMatch = await bcrypt.compare(password, user.passwordHash);
-    }
-    if (!passwordMatch && (user as any).alternatePasswordHash) {
-      passwordMatch = await bcrypt.compare(password, (user as any).alternatePasswordHash);
-    }
-    if (!passwordMatch && (user as any).originalPasswordHash) {
-      passwordMatch = await bcrypt.compare(password, (user as any).originalPasswordHash);
-    }
+    const compareSafe = async (hash?: string) => {
+      if (!hash) return false;
+      try {
+        return await bcrypt.compare(password, hash);
+      } catch {
+        return false;
+      }
+    };
+    let passwordMatch = await compareSafe(user.passwordHash);
+    if (!passwordMatch) passwordMatch = await compareSafe((user as any).alternatePasswordHash);
+    if (!passwordMatch) passwordMatch = await compareSafe((user as any).originalPasswordHash);
 
     if (!passwordMatch) {
       return res.status(401).json({
@@ -187,7 +188,7 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Login failed" });
       }
       const csrfToken = crypto.randomBytes(24).toString("hex");
-      (req.session as any).userObjectId = user._id.toString();
+      req.session.userObjectId = user._id.toString();
       req.session.userId = user.userId;
       req.session.role = user.role;
       req.session.csrfToken = csrfToken;
@@ -214,7 +215,7 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
         code: "DB_CONNECTION_FAILED",
       });
     }
-    return res.status(500).json({ message: error?.message || "Internal server error" });
+    return res.status(500).json({ message: "Internal server error", code: "LOGIN_FAILED" });
   }
 });
 

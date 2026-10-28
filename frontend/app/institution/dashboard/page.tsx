@@ -80,7 +80,7 @@ export default function InstitutionDashboard() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <Link href="/institution/submit/approval" className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 transition block">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Total Applications
           </div>
@@ -92,9 +92,9 @@ export default function InstitutionDashboard() {
             <span>•</span>
             <span className="text-emerald-600 font-bold">{stats.approvedApplications || 0} Approved</span>
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <Link href="/institution/submit/payment" className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 transition block">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             FDR & Payments
           </div>
@@ -104,9 +104,9 @@ export default function InstitutionDashboard() {
           <div className="text-[11px] text-emerald-600 font-bold mt-1">
             {stats.verifiedPayments || 0} Verified by FD
           </div>
-        </div>
+        </Link>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <Link href="/institution/submit/release" className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-blue-500 transition block">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Release Requests
           </div>
@@ -116,7 +116,7 @@ export default function InstitutionDashboard() {
           <div className="text-[11px] text-blue-600 font-bold mt-1">
             {stats.approvedReleases || 0} Approved
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Quick Access Tiles */}
