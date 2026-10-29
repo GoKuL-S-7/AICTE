@@ -38,7 +38,7 @@ export interface ClassificationResult {
 }
 
 const GREETING_REGEX =
-  /^(hi+|hello+|hey+|hiya|howdy|namaste|namaskar|greetings|bro|dude|good\s*(morning|afternoon|evening|day))(\s+(hi+|hello+|hey+|there|assistant|bot|aicte|team|sir|madam|friend|bro))?[\s!.,?]*$/i;
+  /^(hi+|hello+|hey+|hiya|howdy|namaste|namaskar|greetings|bro|dude|good\s*(morning|afternoon|evening|day))(\s+(hi+|hello+|hey+|there|assistant|bot|aicte|team|sir|madam|friend|bro))*[\s!.,?]*$/i;
 
 const GREETING_CASUAL_QUERY_REGEX =
   /^(hi+|hello+|hey+|good\s*(morning|afternoon|evening|day))[\s,!-]+(how\s*are\s*you|how\s*r\s*u|how\s*do\s*you\s*do|what\s*can\s*you\s*do|how\s*can\s*you\s*help(\s*me)?|who\s*are\s*you)[\s!.,?]*$/i;
@@ -115,7 +115,7 @@ export function classifyUserQuestion(
       category: "UNRELATED",
       primarySource: "REFUSAL",
       needsHandbookRetrieval: false,
-      reply: "It is not under my coverage"
+      reply: "I am specialized strictly in the AICTE Unified Portal and the AICTE Approval Process Handbook (2024–27). This topic is outside my coverage."
     };
   }
 
@@ -234,15 +234,22 @@ export function classifyUserQuestion(
   }
 
   // 7. LIVE RECORD & STATUS QUESTIONS (Category G)
-  // e.g. "Why is my release request pending?", "What is the status of my application?", "Has my FDR been verified?"
+  // e.g. "Why is my release request pending?", "What is the status of my application?", "Has my FDR been verified?", "Why was my application returned for correction?"
   if (
     lower.includes("why is my release request pending") ||
     lower.includes("why is my release pending") ||
     lower.includes("why was my release blocked") ||
     lower.includes("release request pending") ||
     lower.includes("status of my application") ||
+    lower.includes("application status") ||
+    lower.includes("why was my application returned") ||
+    lower.includes("why my application was returned") ||
     lower.includes("has my fdr been verified") ||
     lower.includes("what happened to this complaint") ||
+    lower.includes("pending applications count") ||
+    lower.includes("pending queue") ||
+    lower.includes("college c-") ||
+    (lower.includes("why") && lower.includes("returned") && lower.includes("application")) ||
     (lower.includes("why") && lower.includes("pending") && (lower.includes("release") || lower.includes("application")))
   ) {
     return {

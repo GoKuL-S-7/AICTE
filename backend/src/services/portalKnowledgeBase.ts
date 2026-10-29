@@ -780,8 +780,8 @@ export const PORTAL_PAGES_KNOWLEDGE: Record<string, PortalPageDoc> = {
 export const PORTAL_TERMINOLOGY_KNOWLEDGE: Record<string, { term: string; definition: string; portalContext: string }> = {
   fdr: {
     term: "FDR (Fixed Deposit Receipt)",
-    definition: "A Fixed Deposit Receipt is a financial instrument issued by a bank certifying that a sum of money has been deposited for a fixed period. In AICTE regulations, it represents the mandatory Security Deposit established by an applicant institution in a Scheduled Commercial Bank for a mandatory 8 to 10-year term in the joint name of the institution and the Regional Officer, AICTE.",
-    portalContext: "In the portal, FDR details are submitted under Submit → Payment / FDR Submission (/institution/submit/payment), verified by the Finance Division under Deposit Records, and claimed for refund under Submit → Release Application (/institution/submit/release) once the lock-in period matures."
+    definition: "A Fixed Deposit Receipt (FDR) is a recognized financial instrument issued by a Scheduled Commercial Bank certifying that a specific sum of money has been deposited for an agreed term. In the AICTE framework, it serves as the mandatory Security Deposit pledged jointly to the institution and the Regional Officer, AICTE, as required under the Approval Process Handbook (e.g., Clause 1.12 / Appendix 10, typically 10 years for new technical institutions or 8 years for specific categories).",
+    portalContext: "Within this portal, institutions submit FDR receipt details and verification documents under Submit → Payment / FDR Submission (/institution/submit/payment). The AICTE Finance Division (FD) scrutinizes and verifies the deposit under Deposit Records (/fd/dashboard). Once the mandated lock-in period completes, the institution files for return of the deposit under Submit → Release Application (/institution/submit/release)."
   },
   handbook: {
     term: "Approval Process Handbook (APH)",

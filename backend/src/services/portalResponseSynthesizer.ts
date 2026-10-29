@@ -211,6 +211,64 @@ export function generatePortalGuidanceAnswer({
 
   // 5. LIVE RECORD & STATUS INQUIRIES
   if (classification.category === "LIVE_RECORD_STATUS") {
+    // Tenant Isolation Check: If institution user asks for another college ID
+    const collegeMatch = q.match(/c-\d+/i);
+    if (role === "INSTITUTION" && collegeMatch) {
+      const requestedCollege = collegeMatch[0].toUpperCase();
+      const userCollege = (portalContext.collegeId || "").toUpperCase();
+      if (userCollege && requestedCollege !== userCollege) {
+        return {
+          content:
+            `### Data Isolation Notice\n\n` +
+            `You are authenticated as **${portalContext.institutionName || "Institution"}** (\`${userCollege}\`). ` +
+            `Under AICTE security policy, you cannot view data for other institutions (\`${requestedCollege}\`). ` +
+            `You can only view status and records belonging to your own institution.`,
+          citations: [],
+        };
+      }
+    }
+
+    // Employee pending queue check
+    if (role === "AICTE_FD_EMPLOYEE" && (q.includes("pending") || q.includes("queue"))) {
+      return {
+        content:
+          `### FD Verification Officer Queue Status\n\n` +
+          `Hello **${portalContext.userName || "Officer"}**, there are currently **${portalContext.pendingCount ?? 0}** pending application(s) awaiting scrutiny in your verification queue. ` +
+          `Open **Pending Verification** (\`/fd/dashboard\`) to review and process submitted files.`,
+        citations: [],
+      };
+    }
+
+    // Why was my application returned for correction?
+    if (q.includes("returned for correction") || q.includes("why was my application returned") || (q.includes("why") && q.includes("returned"))) {
+      if (role === "INSTITUTION") {
+        const app = portalContext.application || {};
+        const appId = app.applicationId || portalContext.applicationNumber || "N/A";
+        const status = app.status || portalContext.applicationStatus || "RETURNED_FOR_CORRECTION";
+        const remarks = app.lastRemarks || portalContext.lastRemarks || "Deficiencies detected during scrutiny.";
+        const docs = portalContext.deficientDocuments || [];
+
+        let resp = `### Why Your Application Was Returned for Correction\n\n`;
+        resp += `- **Application ID:** \`${appId}\`\n`;
+        resp += `- **Current Status:** **${status}**\n`;
+        resp += `- **Recorded Scrutiny Remarks:** ${remarks}\n\n`;
+
+        if (docs.length > 0) {
+          resp += `**Deficient Document(s) Requiring Rectification:**\n`;
+          docs.forEach((d: any) => {
+            resp += `- **${d.documentName}:** ${d.remarks || "Rejected during officer scrutiny"}\n`;
+          });
+          resp += `\n`;
+        }
+
+        resp += `**Action Steps to Rectify:**\n`;
+        resp += `1. Review the full remarks under **Receive → Complaint Outcome Letters** (\`/institution/receive/complaint-letters\`).\n`;
+        resp += `2. Prepare the updated authentic PDF certificates.\n`;
+        resp += `3. Navigate to **Submit → Approval Seeking** (\`/institution/submit/approval\`) and re-upload the corrected documents.`;
+        return { content: resp, citations: [] };
+      }
+    }
+
     // Why is my release request pending?
     if (q.includes("release request pending") || q.includes("release pending") || q.includes("why is my release")) {
       if (role === "INSTITUTION") {
@@ -248,6 +306,55 @@ export function generatePortalGuidanceAnswer({
 
   // 6. HOW-TO & WORKFLOW GUIDANCE
   if (classification.category === "HOWTO_WORKFLOW") {
+    // How do I release my FDR deposit?
+    if (
+      q.includes("how do i release") ||
+      q.includes("release my fdr") ||
+      q.includes("release fdr") ||
+      q.includes("release deposit") ||
+      q.includes("fdr deposit release")
+    ) {
+      if (role === "INSTITUTION") {
+        return {
+          content:
+            `### How to Apply for FDR Deposit Release in the Institution Portal:\n\n` +
+            `1. Navigate to **Submit → Release Application** (\`/institution/submit/release\`).\n` +
+            `2. Select the matured Fixed Deposit Receipt from your registered deposits list.\n` +
+            `3. Upload the **4 mandatory release documents**:\n` +
+            `   - **Release Request Letter** (on official institutional letterhead)\n` +
+            `   - **Original FDR Copy** (with bank discharge/lien status)\n` +
+            `   - **Sworn Affidavit 6** (notarized on ₹100 stamp paper as prescribed in the Approval Process Handbook)\n` +
+            `   - **Latest Extension of Approval (EoA) / NOC**\n` +
+            `4. Verify that there are no active disciplinary actions or unresolved complaints under PGRC or Vigilance.\n` +
+            `5. Click **Submit Release Request**.\n` +
+            `6. Monitor your review progress and clearance statuses in **Receive → Deposit Details** (\`/institution/receive/deposit\`).`,
+          citations: [],
+        };
+      }
+    }
+
+    // Prompt injection / administrative action override defense
+    if (
+      q.includes("ignore previous instructions") ||
+      q.includes("ignore all instructions") ||
+      q.includes("approve my application") ||
+      q.includes("approve this application") ||
+      q.includes("approve release") ||
+      q.includes("mark as verified") ||
+      q.includes("change status to")
+    ) {
+      return {
+        content:
+          `### Portal Action Boundary Notice\n\n` +
+          `I am an informational AI guide and cannot execute administrative actions, alter database records, or approve applications. ` +
+          `Approval and verification are statutory responsibilities strictly reserved for authorized AICTE officers.\n\n` +
+          `**Approval Process:**\n` +
+          `- As an institution, submit your documents at **Submit → Approval Seeking** (\`/institution/submit/approval\`).\n` +
+          `- Designated AICTE Finance Division (FD) officers will scrutinize your submission in their official dashboard and issue the formal Letter of Approval (LoA) or Letter of Deficiency (LoD).`,
+        citations: [],
+      };
+    }
+
     // What should I do after this application is returned for correction?
     if (q.includes("returned for correction") || q.includes("application is returned") || (q.includes("correction") && q.includes("what should i do"))) {
       return {
