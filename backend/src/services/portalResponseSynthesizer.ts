@@ -39,7 +39,7 @@ export function generatePortalGuidanceAnswer({
     if (key && PORTAL_TERMINOLOGY_KNOWLEDGE[key]) {
       const termInfo = PORTAL_TERMINOLOGY_KNOWLEDGE[key];
       return {
-        content: `**${termInfo.term}**:\n${termInfo.definition}\n\n**Portal Relevance:**\n${termInfo.portalContext}`,
+        content: `**${termInfo.term}**\n\n${termInfo.definition}\n\n**Portal Relevance:**\n${termInfo.portalContext}`,
         citations: [],
       };
     }
@@ -83,6 +83,60 @@ export function generatePortalGuidanceAnswer({
 
   // 3. PAGE & BUTTON EXPLANATIONS
   if (classification.category === "PAGE_BUTTON_EXPLANATION") {
+    // Verify Button Explanation
+    if (
+      q.includes("verify button") ||
+      q.includes("what does verify do") ||
+      q.includes("what does verify button do") ||
+      q.includes("what does the verify button do") ||
+      (q.includes("verify") && q.includes("button") && !q.includes("maturity"))
+    ) {
+      if (role === "AICTE_FD_EMPLOYEE") {
+        return {
+          content:
+            `### Verify Button\n\n` +
+            `**Purpose:** Records your administrative confirmation that an uploaded statutory certificate or FDR receipt satisfies AICTE norms.\n\n` +
+            `**Where it appears:** In the **FD Employee Portal** on the **Approval Seeking Applications** detail view (\`/fd/dashboard\`) and within the **Document Preview Modal**.\n\n` +
+            `**What happens when clicked:**\n` +
+            `- The document's status immediately updates from **PENDING** to **VERIFIED** with a green badge.\n` +
+            `- Your officer user ID and timestamp are permanently recorded with the decision.\n` +
+            `- The institution receives a real-time notification confirming the document was verified.\n` +
+            `- If all 12 documents are verified, the **Generate Letter (LoA / EoA)** option becomes active.`,
+          citations: [],
+        };
+      }
+      return {
+        content:
+          `In the **AICTE Finance Division Portal**, authorized officers click the **Verify** button next to an uploaded document after inspecting it. ` +
+          `Clicking Verify updates the document status to **VERIFIED** and enables the council to generate your final Letter of Approval (LoA) or Extension of Approval (EoA).`,
+        citations: [],
+      };
+    }
+
+    // Download Button / How can I download my document
+    if (
+      q.includes("download button") ||
+      q.includes("how can i download") ||
+      q.includes("download my document") ||
+      q.includes("download document")
+    ) {
+      if (role === "INSTITUTION") {
+        return {
+          content:
+            `### How to Download Documents in the Institution Portal:\n\n` +
+            `1. **Submitted Documents:** Open **Submit → Approval Seeking** (\`/institution/submit/approval\`) or **Receive → Complaint Outcome Letters** (\`/institution/receive/complaint-letters\`) and click the **Download** link next to any uploaded certificate.\n` +
+            `2. **Approval Letters (LoA / EoA):** Navigate to **Receive → LoA / EoA** (\`/institution/receive/loa-eoa\`) and click **Download Certificate** to save your official signed PDF.\n` +
+            `3. **Deficiency Letters (LoD / EoD):** Navigate to **Receive → LoD / EoD** (\`/institution/receive/lod-eod\`) to download issued deficiency notices.`,
+          citations: [],
+        };
+      }
+      return {
+        content:
+          `In the portal, you can download files directly from the document table or the Document Preview window by clicking the **Download** button with the arrow icon.`,
+        citations: [],
+      };
+    }
+
     // Generate Maturity Letter Button
     if (
       q.includes("generate maturity letter") ||
@@ -171,6 +225,19 @@ export function generatePortalGuidanceAnswer({
             `1. **Submit new FDR:** **Submit → Payment / FDR Submission** (\`/institution/submit/payment\`)\n` +
             `2. **View verified deposits:** **Receive → Deposit Details** (\`/institution/receive/deposit\`)\n` +
             `3. **Apply for release:** **Submit → Release Application** (\`/institution/submit/release\`)`,
+          citations: [],
+        };
+      }
+    }
+
+    // Payment details navigation
+    if (q.includes("payment details") || (q.includes("payment") && q.includes("where"))) {
+      if (role === "INSTITUTION") {
+        return {
+          content:
+            `In the **Institution Portal**, payment and deposit information is organized at:\n\n` +
+            `1. **Submit new FDR / Bank details:** **Submit → Payment / FDR Submission** (\`/institution/submit/payment\`)\n` +
+            `2. **View verified deposits & AICTE account instructions:** **Receive → Deposit Details** (\`/institution/receive/deposit\`)`,
           citations: [],
         };
       }
@@ -306,9 +373,11 @@ export function generatePortalGuidanceAnswer({
 
   // 6. HOW-TO & WORKFLOW GUIDANCE
   if (classification.category === "HOWTO_WORKFLOW") {
-    // How do I release my FDR deposit?
+    // How do I release my FDR deposit? / How do I submit a release application?
     if (
       q.includes("how do i release") ||
+      q.includes("how to release") ||
+      q.includes("release application") ||
       q.includes("release my fdr") ||
       q.includes("release fdr") ||
       q.includes("release deposit") ||
@@ -328,6 +397,147 @@ export function generatePortalGuidanceAnswer({
             `4. Verify that there are no active disciplinary actions or unresolved complaints under PGRC or Vigilance.\n` +
             `5. Click **Submit Release Request**.\n` +
             `6. Monitor your review progress and clearance statuses in **Receive → Deposit Details** (\`/institution/receive/deposit\`).`,
+          citations: [],
+        };
+      }
+    }
+
+    // How do I submit an FDR? / FDR submission workflow
+    if (
+      q.includes("how do i submit an fdr") ||
+      q.includes("how to submit an fdr") ||
+      q.includes("how do i submit fdr") ||
+      q.includes("how to submit fdr")
+    ) {
+      if (role === "INSTITUTION") {
+        return {
+          content:
+            `### How to Submit an FDR in the Institution Portal:\n\n` +
+            `1. In the sidebar menu, click **Submit → Payment / FDR Submission** (\`/institution/submit/payment\`).\n` +
+            `2. Enter the **FDR Number**, **Issuing Bank**, **Branch**, **Deposit Amount**, and **Maturity Date** (confirming it is created jointly with Regional Officer, AICTE).\n` +
+            `3. Upload a legible PDF copy of the official Bank Fixed Deposit Receipt bearing the bank's lien endorsement seal.\n` +
+            `4. Click **Submit FDR Details**.\n` +
+            `5. Your deposit will be transmitted to the AICTE Finance Division (FD) for verification and will appear under **Receive → Deposit Details** (\`/institution/receive/deposit\`).`,
+          citations: [],
+        };
+      }
+    }
+
+    // What happens after submitting an FDR?
+    if (
+      q.includes("what happens after submitting an fdr") ||
+      q.includes("what happens after submit fdr") ||
+      q.includes("what happens after submitting fdr") ||
+      q.includes("after submitting my fdr") ||
+      q.includes("after submit my fdr")
+    ) {
+      return {
+        content:
+          `### What Happens After Submitting an FDR:\n\n` +
+          `1. **Transmission to Finance Division:** Your FDR receipt and bank details are received by the **AICTE Finance Division (FD)** and queued in their **Deposit Records** tab.\n` +
+          `2. **Scrutiny & Verification:** An FD officer inspects the bank receipt to verify the principal amount, bank branch, joint lien in favor of the Regional Officer, AICTE, and the required lock-in duration.\n` +
+          `3. **Transfer to Active Registry:** Once marked **Verified**, the deposit is transferred to the **Alive FDs** registry for active term monitoring.\n` +
+          `4. **Institution Notification:** You receive an automated confirmation notification in your portal inbox, and your status in **Receive → Deposit Details** updates to **Active / Verified**.\n` +
+          `5. **Next Step:** Ensure all mandatory statutory documents are submitted under **Submit → Approval Seeking** to complete your institutional approval requirements.`,
+        citations: [],
+      };
+    }
+
+    // Who verifies my documents? / Who will approve it?
+    if (
+      q.includes("who verifies my documents") ||
+      q.includes("who verifies documents") ||
+      q.includes("who verifies it") ||
+      q.includes("who will approve it") ||
+      q.includes("who approves it") ||
+      q.includes("who approves my application")
+    ) {
+      return {
+        content:
+          `### Document Verification and Approval Authority:\n\n` +
+          `- **Document & FDR Scrutiny:** Uploaded institutional documents and security deposit receipts are scrutinized and verified by authorized officers of the **AICTE Finance Division (FD)**.\n` +
+          `- **Grievance Checks:** Student or faculty complaint checks are processed by the **Public Grievance Redressal Cell (PGRC)**.\n` +
+          `- **Integrity & Vigilance Clearances:** Ethics, fraud, or whistleblower screenings are reviewed by the **AICTE Vigilance Division**.\n` +
+          `- **Final Regulatory Approval:** Final Letters of Approval (LoA) or Extensions of Approval (EoA) are generated and issued by the **Approval Bureau / Competent Council Authority** following complete scrutiny.`,
+        citations: [],
+      };
+    }
+
+    // What happens after release submission?
+    if (
+      q.includes("what happens after release submission") ||
+      q.includes("after release submission") ||
+      q.includes("after submitting release")
+    ) {
+      return {
+        content:
+          `### What Happens After Submitting a Release Application:\n\n` +
+          `1. **Finance Division Review:** Your 4 release documents (Release Request Letter, FDR Copy, Notarized Affidavit 6, and latest EoA) are queued in the FD Employee Portal under **Release Applications**.\n` +
+          `2. **Automated Inter-Bureau Screening:** The system initiates statutory clearance checks with **PGRC** (verifying no pending student/faculty wage or fee complaints) and **Vigilance** (verifying no criminal or ethical proceedings).\n` +
+          `3. **Officer Evaluation:** Once clearances are confirmed, the Finance Division officer assesses lock-in maturity and approves discharge.\n` +
+          `4. **Discharge & Notice:** AICTE issues the official No Objection Certificate (NOC) / Letter of Discharge to the bank, releasing the lien, and updates your deposit status to **RELEASED**.`,
+        citations: [],
+      };
+    }
+
+    // How do I submit a complaint?
+    if (
+      q.includes("how do i submit a complaint") ||
+      q.includes("how to submit a complaint") ||
+      q.includes("submit a complaint") ||
+      q.includes("submit complaint")
+    ) {
+      return {
+        content:
+          `### How to Submit a Complaint in the AICTE Portal:\n\n` +
+          `1. **Student / Faculty Grievance:** Go to **Public Grievance Portal** (\`/complaints/pgrc\`), fill in your details, select the institution, describe the issue, and upload any proof.\n` +
+          `2. **Corruption / Malpractice Complaint:** Go to **Public Vigilance Portal** (\`/complaints/vigilance\`) to lodge a confidential complaint.\n` +
+          `3. After submission, save the generated **Reference Number** (e.g. \`PGRC-2026-XXXXX\` or \`VIG-2026-XXXXX\`) to track your inquiry.`,
+        citations: [],
+      };
+    }
+
+    // How do I track my complaint?
+    if (
+      q.includes("how do i track my complaint") ||
+      q.includes("how to track my complaint") ||
+      q.includes("how do i track complaint") ||
+      q.includes("how to track complaint") ||
+      q.includes("track my complaint")
+    ) {
+      return {
+        content:
+          `### How to Track Your Complaint:\n\n` +
+          `1. **PGRC Complaint Tracking:** Navigate to \`/complaints/pgrc/track\`.\n` +
+          `2. Enter your **Complaint Reference Number** and registered **Email Address**.\n` +
+          `3. Click **Track Status** to view the live timeline, committee hearings, and outcome remarks.\n` +
+          `4. For Vigilance inquiries, visit \`/complaints/vigilance/track\` with your Vigilance case number.`,
+        citations: [],
+      };
+    }
+
+    // Role Declaration Response (e.g. "I am an institution user")
+    if (
+      q === "i am an institution user" ||
+      q === "i am an institution user." ||
+      q === "i am institution" ||
+      q === "i am a college user"
+    ) {
+      return {
+        content:
+          `Welcome! I can guide you through the **Institution Portal**, including submitting approval applications, uploading documents, tracking verification remarks, recording FDR deposits, and submitting release requests. How can I help you today?`,
+        citations: [],
+      };
+    }
+
+    // Payment details navigation
+    if (q.includes("where can i find my payment details") || q.includes("where are my payment details") || q.includes("payment details")) {
+      if (role === "INSTITUTION") {
+        return {
+          content:
+            `In the **Institution Portal**, payment and deposit information is located at:\n\n` +
+            `1. **Submit new FDR / Bank details:** **Submit → Payment / FDR Submission** (\`/institution/submit/payment\`)\n` +
+            `2. **View verified deposits & bank details:** **Receive → Deposit Details** (\`/institution/receive/deposit\`)`,
           citations: [],
         };
       }

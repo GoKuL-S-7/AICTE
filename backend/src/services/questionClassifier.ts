@@ -38,7 +38,7 @@ export interface ClassificationResult {
 }
 
 const GREETING_REGEX =
-  /^(hi+|hello+|hey+|hiya|howdy|namaste|namaskar|greetings|bro|dude|good\s*(morning|afternoon|evening|day))(\s+(hi+|hello+|hey+|there|assistant|bot|aicte|team|sir|madam|friend|bro))*[\s!.,?]*$/i;
+  /^(hi+|hello+|hey+|hiya|howdy|namaste|namaskar|greetings|bro|dude|good\s*(morning|afternoon|evening|day))(\s+(hi+|hello+|hey+|there|assistant|bot|aicte|team|sir|madam|friend|bro|dude))*[\s!.,?]*$/i;
 
 const GREETING_CASUAL_QUERY_REGEX =
   /^(hi+|hello+|hey+|good\s*(morning|afternoon|evening|day))[\s,!-]+(how\s*are\s*you|how\s*r\s*u|how\s*do\s*you\s*do|what\s*can\s*you\s*do|how\s*can\s*you\s*help(\s*me)?|who\s*are\s*you)[\s!.,?]*$/i;
@@ -65,9 +65,11 @@ export function classifyUserQuestion(
 
   // 1. GREETINGS & CASUAL MESSAGES (Category A)
   if (GREETING_REGEX.test(query) || GREETING_CASUAL_QUERY_REGEX.test(query)) {
-    let reply = "Hi! How can I help you use the AICTE Unified Portal today?";
+    let reply = "Hi! How can I help you with the AICTE Unified Portal today?";
     if (lower.startsWith("bro")) {
-      reply = "Hey! How can I help you navigate the AICTE Portal or understand approval workflows today?";
+      reply = "Hey! How can I help you navigate the AICTE Unified Portal or understand approval workflows today?";
+    } else if (lower.includes("dude")) {
+      reply = "Hi! How can I help you with the AICTE Portal?";
     } else if (lower.includes("good morning")) {
       reply = "Good morning! How can I help you with the AICTE Portal today?";
     } else if (lower.includes("good afternoon")) {
@@ -127,6 +129,66 @@ export function classifyUserQuestion(
     /^meaning\s+of\s+([a-z0-9\s/_\-]+)\??$/i.test(lower);
 
   if (isDefinitionPattern) {
+    if (lower === "what is fd" || lower === "what is fd?" || lower.includes("finance division")) {
+      return {
+        category: "GENERAL_DEFINITION",
+        primarySource: "GENERAL_DEFINITION",
+        needsHandbookRetrieval: false,
+        matchedTermKey: "fd"
+      };
+    }
+    if (lower.includes("approval seeking")) {
+      return {
+        category: "GENERAL_DEFINITION",
+        primarySource: "GENERAL_DEFINITION",
+        needsHandbookRetrieval: false,
+        matchedTermKey: "approval_seeking"
+      };
+    }
+    if (lower.includes("alive fd") || lower.includes("alive fds")) {
+      return {
+        category: "GENERAL_DEFINITION",
+        primarySource: "GENERAL_DEFINITION",
+        needsHandbookRetrieval: false,
+        matchedTermKey: "alive_fds"
+      };
+    }
+    if (lower.includes("rejected form") || lower.includes("rejected forms")) {
+      return {
+        category: "GENERAL_DEFINITION",
+        primarySource: "GENERAL_DEFINITION",
+        needsHandbookRetrieval: false,
+        matchedTermKey: "rejected_forms"
+      };
+    }
+    if (lower.includes("released fd") || lower.includes("released fds")) {
+      return {
+        category: "GENERAL_DEFINITION",
+        primarySource: "GENERAL_DEFINITION",
+        needsHandbookRetrieval: false,
+        matchedTermKey: "released_fds"
+      };
+    }
+    if (lower.includes("pgrc") || lower.includes("public grievance")) {
+      if (!lower.includes("track") && !lower.includes("submit") && !lower.includes("complaint")) {
+        return {
+          category: "GENERAL_DEFINITION",
+          primarySource: "GENERAL_DEFINITION",
+          needsHandbookRetrieval: false,
+          matchedTermKey: "pgrc"
+        };
+      }
+    }
+    if (lower.includes("vigilance")) {
+      if (!lower.includes("track") && !lower.includes("submit") && !lower.includes("complaint")) {
+        return {
+          category: "GENERAL_DEFINITION",
+          primarySource: "GENERAL_DEFINITION",
+          needsHandbookRetrieval: false,
+          matchedTermKey: "vigilance"
+        };
+      }
+    }
     if (lower.includes("handbook") || lower.includes("aph")) {
       return {
         category: "GENERAL_DEFINITION",
@@ -183,7 +245,33 @@ export function classifyUserQuestion(
   }
 
   // 5. PAGE AND BUTTON EXPLANATIONS (Category C)
-  // e.g. "What does Generate Maturity Letter do?", "What does this button do?", "What is this page for?"
+  // e.g. "What does Generate Maturity Letter do?", "What does this button do?", "What is this page for?", "What does the Verify button do?", "How can I download my document?"
+  if (
+    lower.includes("verify button") ||
+    lower.includes("what does verify do") ||
+    lower.includes("what does the verify button do") ||
+    lower.includes("what does verify button do")
+  ) {
+    return {
+      category: "PAGE_BUTTON_EXPLANATION",
+      primarySource: "PORTAL_GUIDE",
+      needsHandbookRetrieval: false
+    };
+  }
+
+  if (
+    lower.includes("download my document") ||
+    lower.includes("how can i download") ||
+    lower.includes("how do i download") ||
+    lower.includes("download button")
+  ) {
+    return {
+      category: "PAGE_BUTTON_EXPLANATION",
+      primarySource: "PORTAL_GUIDE",
+      needsHandbookRetrieval: false
+    };
+  }
+
   if (
     lower.includes("generate maturity letter") ||
     lower.includes("maturity letter button") ||
@@ -269,6 +357,13 @@ export function classifyUserQuestion(
     lower.includes("what should i do after") ||
     lower.includes("what to do after") ||
     lower.includes("what happens next") ||
+    lower.includes("what happens after") ||
+    lower.includes("who verifies") ||
+    lower.includes("who will approve") ||
+    lower.includes("who approves") ||
+    lower.includes("how can i download") ||
+    lower.includes("how to download") ||
+    lower.includes("i am an institution user") ||
     lower.includes("returned for correction") ||
     lower.includes("application is returned") ||
     lower.includes("how do i track") ||

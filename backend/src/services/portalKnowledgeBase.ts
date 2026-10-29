@@ -778,30 +778,75 @@ export const PORTAL_PAGES_KNOWLEDGE: Record<string, PortalPageDoc> = {
 // 6. WORKFLOW & TERMINOLOGY KNOWLEDGE
 // =========================================================================
 export const PORTAL_TERMINOLOGY_KNOWLEDGE: Record<string, { term: string; definition: string; portalContext: string }> = {
+  fd: {
+    term: "FD (Finance Division)",
+    definition: "FD stands for Finance Division. In the AICTE Portal, it manages financial deposit-related activities, including deposit verification, scrutiny of statutory fees, monitoring active deposits, and release processing.",
+    portalContext: "Finance Division officers log into the FD Shield console (/fd/dashboard) to review approval applications, verify bank deposits, and evaluate deposit release applications."
+  },
   fdr: {
     term: "FDR (Fixed Deposit Receipt)",
-    definition: "A Fixed Deposit Receipt (FDR) is a recognized financial instrument issued by a Scheduled Commercial Bank certifying that a specific sum of money has been deposited for an agreed term. In the AICTE framework, it serves as the mandatory Security Deposit pledged jointly to the institution and the Regional Officer, AICTE, as required under the Approval Process Handbook (e.g., Clause 1.12 / Appendix 10, typically 10 years for new technical institutions or 8 years for specific categories).",
-    portalContext: "Within this portal, institutions submit FDR receipt details and verification documents under Submit → Payment / FDR Submission (/institution/submit/payment). The AICTE Finance Division (FD) scrutinizes and verifies the deposit under Deposit Records (/fd/dashboard). Once the mandated lock-in period completes, the institution files for return of the deposit under Submit → Release Application (/institution/submit/release)."
+    definition: "FDR stands for Fixed Deposit Receipt. It is a recognized financial document issued by a Scheduled Commercial Bank certifying that a specific sum has been deposited for an agreed term. In the AICTE Portal, it serves as the mandatory security deposit pledged in the joint names of the institution and the Regional Officer, AICTE.",
+    portalContext: "Institutions submit FDR receipt details under Submit → Payment / FDR Submission (/institution/submit/payment). The Finance Division verifies the receipt under Deposit Records, and institutions apply for release under Submit → Release Application (/institution/submit/release) upon term completion."
+  },
+  approval_seeking: {
+    term: "Approval Seeking",
+    definition: "Approval Seeking is the formal regulatory process through which an institution applies for Letter of Approval (LoA) for a new institution/program or Extension of Approval (EoA) for annual continuation, by uploading the 12 mandatory statutory documents.",
+    portalContext: "Institutions complete this in the sidebar under Submit → Approval Seeking (/institution/submit/approval). Once submitted, the file is queued for Finance Division officer scrutiny."
+  },
+  alive_fds: {
+    term: "Alive FDs",
+    definition: "Alive FDs are verified security deposit records that remain active and have not been recorded as released. These represent live deposits currently held in joint lien with AICTE.",
+    portalContext: "Authorized Finance Division employees monitor active lock-in periods, maturity countdowns, and pre-maturity reminder letters under the Alive FDs tab on the FD Dashboard (/fd/dashboard)."
+  },
+  released_fds: {
+    term: "Released FDs",
+    definition: "Released FDs are security deposit records that have successfully completed their lock-in period, obtained inter-departmental clearances, and been formally discharged and returned to the institution.",
+    portalContext: "Accessible in the FD Employee Portal under the Released FDs tab (/fd/dashboard), displaying the historical registry of all released deposits and discharge dates."
+  },
+  rejected_forms: {
+    term: "Rejected Forms",
+    definition: "Rejected Forms contains applications, submissions, or release requests that have been rejected or marked deficient during scrutiny. Authorized users can review recorded decisions, dates, and officer remarks.",
+    portalContext: "Finance Division officers view rejected submissions under the Rejected Forms tab on /fd/dashboard. Institutions view their itemized document deficiencies under Receive → Complaint Outcome Letters (/institution/receive/complaint-letters)."
+  },
+  release_applications: {
+    term: "Release Applications",
+    definition: "Release Applications is the module where institutions apply for the refund/discharge of their matured FDR security deposit after completing the statutory lock-in period.",
+    portalContext: "Institutions submit their request under Submit → Release Application (/institution/submit/release) with the 4 mandatory files (Release Letter, FDR Copy, Affidavit 6, latest EoA). FD officers evaluate and approve releases under the Release Applications view."
+  },
+  compliance_status: {
+    term: "Compliance Status / Bureau Clearance",
+    definition: "Compliance Status is the cross-bureau clearance registry that checks whether an institution has active complaints or investigations pending with the Public Grievance Redressal Cell (PGRC) or the Vigilance Division.",
+    portalContext: "Under AICTE rules (Clause 6.46), no security deposit can be released until affirmative clearances are confirmed from both PGRC and Vigilance. FD employees inspect real-time clearance badges under Compliance Status."
+  },
+  pgrc: {
+    term: "PGRC (Public Grievance Redressal Cell)",
+    definition: "PGRC stands for Public Grievance Redressal Cell. It is the designated AICTE committee that handles complaints and grievances submitted by students, faculty, staff, or parents against technical institutions.",
+    portalContext: "The public submits and tracks grievances at /complaints/pgrc and /complaints/pgrc/track. PGRC officers investigate and resolve grievances on /pgrc/dashboard."
+  },
+  vigilance: {
+    term: "Vigilance Division",
+    definition: "The Vigilance Division is the specialized investigative authority in AICTE that examines allegations of institutional misconduct, corruption, financial embezzlement, and fraud.",
+    portalContext: "Whistleblowers and citizens submit confidential complaints at /complaints/vigilance and track them at /complaints/vigilance/track. Vigilance officers manage cases on /vigilance/dashboard."
   },
   handbook: {
     term: "Approval Process Handbook (APH)",
-    definition: "The Approval Process Handbook is the official statutory document published by the All India Council for Technical Education (AICTE) specifying legal regulations, architectural norms, land requirements, faculty ratios, fees, and procedures for granting approval to technical institutions.",
-    portalContext: "You can search and read all indexed clauses of the 2024–27 Handbook directly inside the portal by clicking Handbook in the sidebar (/institution/handbook)."
+    definition: "The Approval Process Handbook is the official statutory publication issued by AICTE outlining legal regulations, land norms, faculty ratios, infrastructure rules, and approval procedures for technical institutions.",
+    portalContext: "Authorized portal users can search and read indexed clauses of the 2024–27 Handbook directly under Sidebar → Handbook (/institution/handbook)."
   },
   loa: {
     term: "LoA (Letter of Approval)",
-    definition: "Letter of Approval is the initial formal regulatory approval issued by AICTE granting permission to establish a New Technical Institution or introduce a new technical programme.",
-    portalContext: "Institutions apply for LoA under Submit → Approval Seeking by uploading the 12 mandatory statutory documents. Once granted by the FD Employee, the official certificate can be downloaded under Receive → LoA / EoA (/institution/receive/loa-eoa)."
+    definition: "Letter of Approval is the initial formal regulatory permission granted by AICTE allowing a society or trust to establish a New Technical Institution or introduce a new technical programme.",
+    portalContext: "Institutions apply for LoA under Submit → Approval Seeking. Once approved, the official signed LoA is downloaded under Receive → LoA / EoA (/institution/receive/loa-eoa)."
   },
   eoa: {
     term: "EoA (Extension of Approval)",
-    definition: "Extension of Approval is the annual statutory permission granted to existing approved institutions allowing them to continue operational technical courses and admit students for the subsequent academic session.",
-    portalContext: "Existing colleges file annual compliance in Submit → Approval Seeking. Once approved, the official EoA document is downloaded under Receive → LoA / EoA."
+    definition: "Extension of Approval is the annual permission granted to existing technical colleges to continue operations and admit students for the upcoming academic year.",
+    portalContext: "Existing institutions file annual compliance under Submit → Approval Seeking. Once approved, the annual EoA certificate is downloaded under Receive → LoA / EoA."
   },
   lod_eod: {
     term: "LoD / EoD (Letter / Extension of Deficiency)",
-    definition: "A Letter of Deficiency (LoD) or Extension of Deficiency (EoD) is a formal notice issued by AICTE when an institution's submitted documents or infrastructure fail scrutiny, specifying the exact deficiencies that must be rectified.",
-    portalContext: "If an FD Employee marks any document 'NOT VERIFIED', the deficiency notice appears under Receive → LoD / EoD (/institution/receive/lod-eod) and itemized remarks appear under Receive → Complaint Outcome Letters (/institution/receive/complaint-letters)."
+    definition: "A Letter of Deficiency (LoD) or Extension of Deficiency (EoD) is a formal notification issued by AICTE when an institution's submitted documents or facilities fail scrutiny, listing the deficiencies that must be rectified.",
+    portalContext: "Appears under Receive → LoD / EoD (/institution/receive/lod-eod) and itemized remarks appear under Receive → Complaint Outcome Letters (/institution/receive/complaint-letters)."
   },
   complaint_outcome_letter: {
     term: "Complaint Outcome Letter / Document Deficiency Remarks",

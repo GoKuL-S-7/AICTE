@@ -1074,19 +1074,33 @@ function DocPreviewModal({
   const [rejectError, setRejectError] = useState("");
   const [modalFeedback, setModalFeedback] = useState<{ type: string; text: string } | null>(null);
 
-  if (!doc) return null;
+  const [localDoc, setLocalDoc] = useState(doc);
 
-  const isVerified = doc.status === "Verified";
-  const isNotVerified = doc.status === "Not Verified";
-  const letterSent = doc.verificationLetterSent || Boolean(doc.verificationLetter);
+  useEffect(() => {
+    setLocalDoc(doc);
+  }, [doc]);
+
+  if (!localDoc) return null;
+
+  const isVerified = localDoc.status === "Verified";
+  const isNotVerified = localDoc.status === "Not Verified";
+  const letterSent = localDoc.verificationLetterSent || Boolean(localDoc.verificationLetter);
 
   const handleVerify = async () => {
     if (onVerifyDoc) {
-      await onVerifyDoc(doc);
-      setModalFeedback({
-        type: "success",
-        text: "Document marked as Verified. Send Verification Letter option is now enabled.",
-      });
+      try {
+        await onVerifyDoc(localDoc);
+        setLocalDoc((prev: any) => ({ ...prev, status: "Verified", remarks: "" }));
+        setModalFeedback({
+          type: "success",
+          text: "Document marked as Verified. Send Verification Letter option is now enabled.",
+        });
+      } catch (err: any) {
+        setModalFeedback({
+          type: "error",
+          text: err.message || "Failed to verify document.",
+        });
+      }
     }
   };
 
@@ -1096,12 +1110,20 @@ function DocPreviewModal({
       return;
     }
     if (onRejectDoc) {
-      await onRejectDoc(doc, rejectRemarks.trim());
-      setRejecting(false);
-      setModalFeedback({
-        type: "warning",
-        text: "Document marked as Not Verified with remarks.",
-      });
+      try {
+        await onRejectDoc(localDoc, rejectRemarks.trim());
+        setLocalDoc((prev: any) => ({ ...prev, status: "Not Verified", remarks: rejectRemarks.trim() }));
+        setRejecting(false);
+        setModalFeedback({
+          type: "warning",
+          text: "Document marked as Not Verified with remarks.",
+        });
+      } catch (err: any) {
+        setModalFeedback({
+          type: "error",
+          text: err.message || "Failed to update document status.",
+        });
+      }
     }
   };
 
@@ -1239,8 +1261,8 @@ function DocPreviewModal({
                 <div>
                   <span style={{ fontSize: ".8125rem", fontWeight: 600, color: "var(--navy)" }}>Official Verification Decision:</span>
                   <p style={{ fontSize: ".75rem", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
-                    Status: <strong>{doc.status || "Pending"}</strong>
-                    {doc.remarks && <span style={{ color: "var(--danger)", marginLeft: 8 }}>Remarks: {doc.remarks}</span>}
+                    Status: <strong style={{ color: isVerified ? "var(--success)" : isNotVerified ? "var(--danger)" : "var(--text-primary)" }}>{localDoc.status || "Pending"}</strong>
+                    {localDoc.remarks && <span style={{ color: "var(--danger)", marginLeft: 8 }}>Remarks: {localDoc.remarks}</span>}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -1428,6 +1450,14 @@ function ApprovalApplicationsView({
         if (targetApp) {
           targetApp.documents = res.documents;
         }
+      }
+      // If a document is currently previewed in modal, keep its active state synchronized
+      if (previewDoc && (previewDoc.id === docId || previewDoc.fileName === docId || previewDoc.code === docId)) {
+        setPreviewDoc((prev: any) => ({
+          ...prev,
+          status,
+          remarks: status === "Not Verified" ? remarks : "",
+        }));
       }
       await onReload();
       setMessage({ type: "success", text: `Document status updated to ${status}.` });
