@@ -44,6 +44,20 @@ import {
 // ── Helpers ──────────────────────────────────────────────────────────
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n || 0);
 const fmtCurrency = (n: number) => `₹${fmt(n)}`;
+const fmtCompactCurrency = (n: number) => {
+  const val = Number(n) || 0;
+  if (Math.abs(val) >= 1e7) {
+    // 1 Crore = 10,000,000
+    const cr = val / 1e7;
+    return `₹${cr % 1 === 0 ? cr.toFixed(0) : cr.toFixed(2)} Cr`;
+  }
+  if (Math.abs(val) >= 1e5) {
+    // 1 Lakh = 100,000
+    const lk = val / 1e5;
+    return `₹${lk % 1 === 0 ? lk.toFixed(0) : lk.toFixed(2)} L`;
+  }
+  return fmtCurrency(val);
+};
 const fmtDate = (d: any) => {
   if (!d) return "—";
   const dt = new Date(d);
@@ -888,13 +902,26 @@ function DashboardView({
           style={{ cursor: "pointer" }}
           role="button"
           tabIndex={0}
-          title="Click to view all Alive FDR Records"
+          title={`Click to view all Alive FDR Records (Full Amount: ${fmtCurrency(aliveAmount)})`}
         >
           <div className="stat-icon accent">
             <DollarSign size={24} />
           </div>
-          <div className="stat-info">
-            <h4>{fmtCurrency(aliveAmount)}</h4>
+          <div className="stat-info min-w-0">
+            <h4
+              className="stat-amount"
+              title={fmtCurrency(aliveAmount)}
+              style={{
+                fontSize: "clamp(1.1rem, 2.2vw, 1.5rem)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "100%",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {fmtCompactCurrency(aliveAmount)}
+            </h4>
             <p style={{ fontWeight: 600, color: "var(--navy)" }}>Total Amount Deposited</p>
             <span style={{ fontSize: ".75rem", color: "var(--text-muted)" }}>Verified active deposits</span>
           </div>

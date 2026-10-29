@@ -328,6 +328,11 @@
 .stat-icon.danger  { background: var(--danger-bg);  color: var(--danger);  }
 .stat-icon.info    { background: var(--info-bg);     color: var(--info);    }
 
+.stat-info {
+  min-width: 0;
+  flex: 1;
+}
+
 .stat-info h4 {
   font-size: 1.5rem;
   font-weight: 700;
