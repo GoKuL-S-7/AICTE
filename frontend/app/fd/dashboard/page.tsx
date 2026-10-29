@@ -1421,7 +1421,14 @@ function ApprovalApplicationsView({
   const handleVerifyDoc = async (appId: string, docId: string, status: string, remarks = "") => {
     setVerifyingDocId(docId);
     try {
-      await apiPost(`/api/fd/application/${appId}/verify-document`, { docId, status, remarks });
+      const res = await apiPost(`/api/fd/application/${appId}/verify-document`, { docId, status, remarks });
+      // Optimistically update document in local applications state if available
+      if (res && res.documents) {
+        const targetApp = applications.find(a => a.id === appId || a._id === appId);
+        if (targetApp) {
+          targetApp.documents = res.documents;
+        }
+      }
       await onReload();
       setMessage({ type: "success", text: `Document status updated to ${status}.` });
     } catch (err: any) {

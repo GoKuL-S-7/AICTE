@@ -329,26 +329,46 @@ router.post("/application/:id/verify-document", requireAuth, requireRole("AICTE_
       });
     }
 
+    // Update both documentItems and categoryDocuments if present
     let targetDoc: any = null;
-    documents = documents.map((d: any) => {
-      if (d.id === docId || d.fileName === docId || d.code === docId) {
-        targetDoc = d;
-        return {
-          ...d,
-          status,
-          remarks: status === "Not Verified" ? String(remarks).trim() : "",
-          verifiedBy: req.session.userId,
-          verifiedAt: new Date(),
-        };
-      }
-      return d;
-    });
+
+    if (Array.isArray(documents) && documents.length > 0) {
+      documents = documents.map((d: any) => {
+        if (d.id === docId || d.fileName === docId || d.code === docId || d.name === docId) {
+          targetDoc = d;
+          return {
+            ...d,
+            status,
+            remarks: status === "Not Verified" ? String(remarks).trim() : "",
+            verifiedBy: req.session.userId,
+            verifiedAt: new Date(),
+          };
+        }
+        return d;
+      });
+      app.documentItems = documents;
+    }
+
+    if (Array.isArray(app.categoryDocuments) && app.categoryDocuments.length > 0) {
+      app.categoryDocuments = app.categoryDocuments.map((d: any) => {
+        if (d.id === docId || d.fileName === docId || d.code === docId || d.name === docId || (targetDoc && (d.fileName === targetDoc.fileName || d.id === targetDoc.id))) {
+          if (!targetDoc) targetDoc = d;
+          return {
+            ...d,
+            status,
+            remarks: status === "Not Verified" ? String(remarks).trim() : "",
+            verifiedBy: req.session.userId,
+            verifiedAt: new Date(),
+          };
+        }
+        return d;
+      });
+    }
 
     if (!targetDoc) {
       return res.status(404).json({ message: "Document not found in application" });
     }
 
-    app.documentItems = documents;
     await app.save();
 
     // Update or create DocumentVerification record in MongoDB
@@ -389,20 +409,21 @@ router.post("/application/:id/verify-document", requireAuth, requireRole("AICTE_
             documentName: docVerif.documentName || targetDoc.name,
           });
         }
-        docVerif.institutionId = app.collegeId;
-        docVerif.collegeId = app.collegeId;
-        docVerif.applicationRef = app.applicationId;
-        docVerif.documentId = targetDoc.id || docId;
-        docVerif.documentName = targetDoc.name || targetDoc.fileName || targetDoc.category;
-        docVerif.documentPath = docPath;
-        docVerif.verified = !isReject;
-        docVerif.status = newStatus;
-        docVerif.reviewed = true;
-        docVerif.remarks = cleanRemarks;
-        docVerif.employeeId = empId;
-        docVerif.employeeUserId = req.session.userId;
-        docVerif.decisionDate = now;
-        await docVerif.save();
+          docVerif.applicationId = app._id;
+          docVerif.institutionId = app.collegeId;
+          docVerif.collegeId = app.collegeId;
+          docVerif.applicationRef = app.applicationId;
+          docVerif.documentId = targetDoc.id || docId;
+          docVerif.documentName = targetDoc.name || targetDoc.fileName || targetDoc.category;
+          docVerif.documentPath = docPath;
+          docVerif.verified = !isReject;
+          docVerif.status = newStatus;
+          docVerif.reviewed = true;
+          docVerif.remarks = cleanRemarks;
+          docVerif.employeeId = empId;
+          docVerif.employeeUserId = req.session.userId;
+          docVerif.decisionDate = now;
+          await docVerif.save();
       } else {
         docVerif = await DocumentVerification.create({
           applicationId: app._id,
