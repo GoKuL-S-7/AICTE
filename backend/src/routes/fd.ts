@@ -395,6 +395,7 @@ router.post("/application/:id/verify-document", requireAuth, requireRole("AICTE_
     };
     documents[targetIdx] = updatedTargetDoc;
     app.documentItems = documents;
+    app.markModified("documentItems");
 
     if (Array.isArray(app.categoryDocuments) && app.categoryDocuments.length > 0) {
       // Find corresponding entry in categoryDocuments using the resolved targetDoc unique identifiers
@@ -422,6 +423,7 @@ router.post("/application/:id/verify-document", requireAuth, requireRole("AICTE_
           verifiedBy: req.session.userId,
           verifiedAt: new Date(),
         };
+        app.markModified("categoryDocuments");
       }
     }
 
@@ -599,7 +601,52 @@ router.post("/application/:id/generate-letter", requireAuth, requireRole("AICTE_
     }
 
     const inst = await Institution.findOne({ collegeId: app.collegeId });
-    const docs = app.documentItems || [];
+    // Reconcile authoritative document verification decisions from documentItems, categoryDocuments, and DocumentVerification
+    const allVerifs = await DocumentVerification.find({ applicationId: app._id });
+    const appVerifMap = new Map<string, any>();
+    allVerifs.forEach(v => {
+      if (v.documentPath) appVerifMap.set(v.documentPath, v);
+      if (v.documentId) appVerifMap.set(v.documentId, v);
+    });
+
+    const rawAppDocs = (app.categoryDocuments && app.categoryDocuments.length > 0)
+      ? app.categoryDocuments
+      : (app.documentItems && app.documentItems.length > 0)
+        ? app.documentItems
+        : (app.documents || []);
+
+    const docs = rawAppDocs.map((d: any, idx: number) => {
+      const fileName = typeof d === "string" ? d : (d.fileName || d.documentPath || d.name || `doc_${idx + 1}`);
+      const catId = typeof d === "object" ? (d.category || d.id) : null;
+      let cat = catId ? MANDATORY_DOCUMENTS.find(c => c.id === catId || c.code === catId) : null;
+      if (!cat && idx < MANDATORY_DOCUMENTS.length) cat = MANDATORY_DOCUMENTS[idx];
+      const docCode = cat?.code || `DOC-${String(idx + 1).padStart(2, "0")}`;
+      const docTitle = cat ? `${cat.code}: ${cat.name}` : (typeof d === "object" && d.name ? d.name : `Document ${idx + 1}`);
+
+      const v = appVerifMap.get(fileName) || (typeof d === "object" && d.id ? appVerifMap.get(d.id) : null);
+      let status: "Verified" | "Not Verified" | "Pending" = "Pending";
+      let remarks = "";
+      if (d.status === "Verified" || d.status === "Not Verified") {
+        status = d.status;
+        remarks = d.remarks || "";
+      } else if (v) {
+        if (v.status === "VERIFIED" || v.verified === true) {
+          status = "Verified";
+        } else if (v.status === "NOT_VERIFIED" || (v.reviewed === true && !v.verified) || (!v.verified && v.remarks && !v.remarks.startsWith("Category:"))) {
+          status = "Not Verified";
+          remarks = v.remarks && !v.remarks.startsWith("Category:") ? v.remarks : "";
+        }
+      }
+
+      return {
+        id: (typeof d === "object" && d.id) ? d.id : `${app.applicationId}-DOC-${idx + 1}`,
+        code: docCode,
+        name: docTitle,
+        fileName,
+        status,
+        remarks,
+      };
+    });
 
     if (!docs || docs.length === 0) {
       return res.status(400).json({ message: "No documents submitted for this application." });
@@ -609,8 +656,9 @@ router.post("/application/:id/generate-letter", requireAuth, requireRole("AICTE_
     if (type === "LoA" || type === "EoA") {
       const unverified = docs.filter((d: any) => d.status !== "Verified");
       if (unverified.length > 0) {
+        const unverifiedNames = unverified.map((d: any) => `${d.code}: ${d.name || d.fileName}`).join(", ");
         return res.status(400).json({
-          message: `Cannot generate ${type}. All mandatory submitted documents must be verified first. (${unverified.length} pending or unverified documents remain)`
+          message: `Cannot generate ${type}. All mandatory submitted documents must be verified first. (${unverified.length} pending or unverified documents remain: ${unverifiedNames})`
         });
       }
     }
@@ -621,8 +669,9 @@ router.post("/application/:id/generate-letter", requireAuth, requireRole("AICTE_
     if (type === "LoD" || type === "EoD") {
       const pendingDocs = docs.filter((d: any) => d.status === "Pending");
       if (pendingDocs.length > 0) {
+        const pendingNames = pendingDocs.map((d: any) => `${d.code}: ${d.name || d.fileName}`).join(", ");
         return res.status(400).json({
-          message: `Cannot generate ${type} while documents are still pending review. Please review all documents first.`
+          message: `Cannot generate ${type} while documents are still pending review. Please review all documents first. (Pending: ${pendingNames})`
         });
       }
       notVerifiedDocs = docs.filter((d: any) => d.status === "Not Verified");

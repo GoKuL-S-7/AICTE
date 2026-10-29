@@ -164,20 +164,32 @@ export default function FDEmployeePortal() {
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
   const [logoutLoading, setLogoutLoading] = useState<boolean>(false);
 
-  // Fetch CSRF token
+  // Helper to read current XSRF-TOKEN cookie if available
+  const getCookieCsrf = useCallback(() => {
+    if (typeof document === "undefined") return "";
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    return m ? decodeURIComponent(m[1]) : "";
+  }, []);
+
+  // Fetch CSRF token directly from server
   const fetchCsrf = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/csrf-token", { credentials: "include" });
       const data = await res.json();
-      if (data.csrfToken) {
+      if (data?.csrfToken) {
         setCsrfToken(data.csrfToken);
         return data.csrfToken;
       }
     } catch (e) {
       console.error("Failed to fetch CSRF token", e);
     }
+    const cookieToken = getCookieCsrf();
+    if (cookieToken) {
+      setCsrfToken(cookieToken);
+      return cookieToken;
+    }
     return "";
-  }, []);
+  }, [getCookieCsrf]);
 
   // API Call Helpers
   const apiGet = useCallback(async (path: string) => {
@@ -193,24 +205,54 @@ export default function FDEmployeePortal() {
 
   const apiPost = useCallback(
     async (path: string, body: any) => {
-      let token = csrfToken;
+      // Priority 1: Current state token, or Cookie token, or fresh fetch
+      let token = csrfToken || getCookieCsrf();
       if (!token) token = await fetchCsrf();
 
-      const res = await fetch(path, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "X-XSRF-TOKEN": token,
-          "x-csrf-token": token,
-        },
-        body: JSON.stringify(body),
-      });
+      const doFetch = async (t: string) => {
+        return await fetch(path, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-XSRF-TOKEN": t,
+            "x-csrf-token": t,
+          },
+          body: JSON.stringify(body),
+        });
+      };
+
+      let res = await doFetch(token);
+
+      // Automatic CSRF recovery: If 403 Invalid CSRF token or CSRF token missing, fetch a fresh token and retry once
+      if (res.status === 403) {
+        let errData: any = {};
+        try {
+          errData = await res.clone().json();
+        } catch {}
+        if (
+          errData?.message?.toLowerCase().includes("csrf") ||
+          errData?.message?.toLowerCase().includes("token")
+        ) {
+          console.warn("CSRF token expired or mismatched. Fetching fresh token and retrying request...");
+          const freshToken = await fetchCsrf();
+          if (freshToken) {
+            token = freshToken;
+            res = await doFetch(freshToken);
+          }
+        }
+      }
+
+      if (res.status === 401) {
+        window.location.replace("/");
+        throw new Error("Session expired. Please log in again.");
+      }
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Action failed");
       return data;
     },
-    [csrfToken, fetchCsrf]
+    [csrfToken, fetchCsrf, getCookieCsrf]
   );
 
   // Manual Sync for Compliance Status
