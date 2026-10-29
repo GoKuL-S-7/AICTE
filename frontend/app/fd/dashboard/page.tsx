@@ -120,11 +120,6 @@ const NAV_ITEMS = [
   { id: "pending-verification", label: "Pending Verification", icon: FileCheck },
   { id: "approval-applications", label: "Approval Seeking Applications", icon: FileCheck },
   { id: "deposit-records", label: "Deposit Records", icon: Landmark },
-  { id: "alive-records", label: "Alive FDs", icon: HeartPulse },
-  { id: "released-fds", label: "Released FDs", icon: Landmark },
-  { id: "rejected-forms", label: "Rejected Forms", icon: XCircle },
-  { id: "release-applications", label: "Release Applications", icon: FileOutput },
-  { id: "compliance-screening", label: "Compliance Status", icon: ShieldAlert },
 ];
 
 export default function FDEmployeePortal() {
@@ -918,8 +913,8 @@ function DashboardView({
         </div>
       )}
 
-      {/* Summary Cards — Clickable to Alive Records */}
-      <div className="stats-grid">
+      {/* Summary Cards — 3 responsive cards */}
+      <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
         <div
           className="stat-card"
           onClick={() => navigate("alive-records")}
@@ -984,93 +979,6 @@ function DashboardView({
             <h4>{stats?.pendingApplications || 0}</h4>
             <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Approval Seeking</p>
             <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Review applications →</span>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          onClick={() => navigate("deposit-records")}
-          style={{ cursor: "pointer" }}
-          role="button"
-          tabIndex={0}
-          title="Click to review deposit records"
-        >
-          <div className="stat-icon accent">
-            <Landmark size={24} />
-          </div>
-          <div className="stat-info">
-            <h4>{stats?.pendingDeposits || 0}</h4>
-            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Deposits</p>
-            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Review deposit records →</span>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          onClick={() => navigate("release-applications")}
-          style={{ cursor: "pointer" }}
-          role="button"
-          tabIndex={0}
-          title="Click to review release applications"
-        >
-          <div className="stat-icon danger">
-            <FileOutput size={24} />
-          </div>
-          <div className="stat-info">
-            <h4>{stats?.pendingReleaseRequests || 0}</h4>
-            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Release Requests</p>
-            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Review release requests →</span>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          onClick={() => navigate("pending-verification")}
-          style={{ cursor: "pointer" }}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="stat-icon warning">
-            <FileCheck size={24} />
-          </div>
-          <div className="stat-info">
-            <h4>{pendingCount}</h4>
-            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Pending Verification</p>
-            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>Open pending table →</span>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          onClick={() => navigate("released-fds")}
-          style={{ cursor: "pointer" }}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="stat-icon success">
-            <Landmark size={24} />
-          </div>
-          <div className="stat-info">
-            <h4>{releasedCount}</h4>
-            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Released FDs</p>
-            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>View released table →</span>
-          </div>
-        </div>
-
-        <div
-          className="stat-card"
-          onClick={() => navigate("rejected-forms")}
-          style={{ cursor: "pointer" }}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="stat-icon danger">
-            <XCircle size={24} />
-          </div>
-          <div className="stat-info">
-            <h4>{rejectedCount}</h4>
-            <p style={{ fontWeight: 600, color: "var(--navy)" }}>Rejected Forms</p>
-            <span style={{ fontSize: ".75rem", color: "var(--accent)" }}>View rejected table →</span>
           </div>
         </div>
       </div>
