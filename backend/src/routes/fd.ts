@@ -240,8 +240,10 @@ router.get("/applications", requireAuth, requireRole("AICTE_FD_EMPLOYEE"), async
             }
           }
 
+          const docIdCandidate = (typeof d === "object" && d.id) ? d.id : `${app.applicationId}-DOC-${idx + 1}`;
           return {
-            id: d.id || `${app.applicationId}-DOC-${idx + 1}`,
+            id: docIdCandidate,
+            documentId: docIdCandidate,
             code: docCode,
             category: cat?.id || `category_${idx + 1}`,
             name: docTitle,
@@ -330,43 +332,97 @@ router.post("/application/:id/verify-document", requireAuth, requireRole("AICTE_
     }
 
     // Update both documentItems and categoryDocuments if present
-    let targetDoc: any = null;
+    // Strict priority hierarchy for matching:
+    // 1. Exact unique document ID (d.id === docId)
+    // 2. Exact unique file name (d.fileName === docId)
+    // 3. Exact unique document code (d.code === docId)
+    // 4. Exact unique original filename (d.originalName === docId)
+    // 5. Index suffix match (e.g. -DOC-3), ONLY IF strictly unambiguous across documents
+    const findMatchingIndex = (list: any[], idToMatch: string): number => {
+      if (!Array.isArray(list) || list.length === 0 || !idToMatch) return -1;
 
-    if (Array.isArray(documents) && documents.length > 0) {
-      documents = documents.map((d: any) => {
-        if (d.id === docId || d.fileName === docId || d.code === docId || d.name === docId) {
-          targetDoc = d;
-          return {
-            ...d,
-            status,
-            remarks: status === "Not Verified" ? String(remarks).trim() : "",
-            verifiedBy: req.session.userId,
-            verifiedAt: new Date(),
-          };
+      // Tier 1: Exact d.id
+      const idMatches = list.map((d, i) => (d && d.id === idToMatch ? i : -1)).filter(i => i !== -1);
+      if (idMatches.length === 1) return idMatches[0];
+      if (idMatches.length > 1) return -2; // Ambiguous
+
+      // Tier 2: Exact d.fileName
+      const fileMatches = list.map((d, i) => (d && d.fileName === idToMatch ? i : -1)).filter(i => i !== -1);
+      if (fileMatches.length === 1) return fileMatches[0];
+      if (fileMatches.length > 1) return -2; // Ambiguous
+
+      // Tier 3: Exact d.code
+      const codeMatches = list.map((d, i) => (d && d.code === idToMatch ? i : -1)).filter(i => i !== -1);
+      if (codeMatches.length === 1) return codeMatches[0];
+      if (codeMatches.length > 1) return -2; // Ambiguous
+
+      // Tier 4: Exact d.originalName
+      const origMatches = list.map((d, i) => (d && d.originalName === idToMatch ? i : -1)).filter(i => i !== -1);
+      if (origMatches.length === 1) return origMatches[0];
+      if (origMatches.length > 1) return -2; // Ambiguous
+
+      // Tier 5: Suffix fallback (e.g. "-DOC-3")
+      if (idToMatch.includes("-DOC-")) {
+        const querySuffix = idToMatch.split("-DOC-")[1];
+        if (querySuffix) {
+          const suffixMatches = list.map((d, i) => {
+            const dSuffix = d && d.id && d.id.includes("-DOC-") ? d.id.split("-DOC-")[1] : null;
+            return dSuffix === querySuffix ? i : -1;
+          }).filter(i => i !== -1);
+          if (suffixMatches.length === 1) return suffixMatches[0];
+          if (suffixMatches.length > 1) return -2; // Ambiguous
         }
-        return d;
-      });
-      app.documentItems = documents;
+      }
+
+      return -1; // Not found
+    };
+
+    const targetIdx = findMatchingIndex(documents, docId);
+    if (targetIdx === -2) {
+      return res.status(400).json({ message: "Ambiguous document identifier matches multiple documents. Please use a unique document identifier." });
     }
+    if (targetIdx === -1) {
+      return res.status(404).json({ message: "Document not found in application" });
+    }
+
+    const targetDoc = documents[targetIdx];
+    const updatedTargetDoc = {
+      ...targetDoc,
+      status,
+      remarks: status === "Not Verified" ? String(remarks).trim() : "",
+      verifiedBy: req.session.userId,
+      verifiedAt: new Date(),
+    };
+    documents[targetIdx] = updatedTargetDoc;
+    app.documentItems = documents;
 
     if (Array.isArray(app.categoryDocuments) && app.categoryDocuments.length > 0) {
-      app.categoryDocuments = app.categoryDocuments.map((d: any) => {
-        if (d.id === docId || d.fileName === docId || d.code === docId || d.name === docId || (targetDoc && (d.fileName === targetDoc.fileName || d.id === targetDoc.id))) {
-          if (!targetDoc) targetDoc = d;
-          return {
-            ...d,
-            status,
-            remarks: status === "Not Verified" ? String(remarks).trim() : "",
-            verifiedBy: req.session.userId,
-            verifiedAt: new Date(),
-          };
-        }
-        return d;
-      });
-    }
+      // Find corresponding entry in categoryDocuments using the resolved targetDoc unique identifiers
+      let catIdx = -1;
+      if (targetDoc.id) {
+        catIdx = findMatchingIndex(app.categoryDocuments, targetDoc.id);
+      }
+      if (catIdx < 0 && targetDoc.fileName) {
+        catIdx = findMatchingIndex(app.categoryDocuments, targetDoc.fileName);
+      }
+      if (catIdx < 0 && targetDoc.code) {
+        catIdx = findMatchingIndex(app.categoryDocuments, targetDoc.code);
+      }
 
-    if (!targetDoc) {
-      return res.status(404).json({ message: "Document not found in application" });
+      // If ambiguous (-2), reject to prevent inconsistent verification statuses across collections
+      if (catIdx === -2) {
+        return res.status(400).json({ message: "Ambiguous document match encountered in category documents. Verification aborted to prevent state inconsistency." });
+      }
+
+      if (catIdx >= 0) {
+        app.categoryDocuments[catIdx] = {
+          ...app.categoryDocuments[catIdx],
+          status,
+          remarks: status === "Not Verified" ? String(remarks).trim() : "",
+          verifiedBy: req.session.userId,
+          verifiedAt: new Date(),
+        };
+      }
     }
 
     await app.save();

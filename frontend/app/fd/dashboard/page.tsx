@@ -1477,7 +1477,7 @@ function ApprovalApplicationsView({
     }
     const doc = remarksModalDoc;
     setRemarksModalDoc(null);
-    await handleVerifyDoc(app.id, doc.id, "Not Verified", remarksInput.trim());
+    await handleVerifyDoc(app.id, doc.id || doc.fileName, "Not Verified", remarksInput.trim());
     setRemarksInput("");
     setRemarksError("");
   };
@@ -1837,7 +1837,7 @@ function ApprovalApplicationsView({
                                 <button
                                   className="btn btn-success btn-sm"
                                   disabled={isVerified || isBusy}
-                                  onClick={() => handleVerifyDoc(app.id, doc.id, "Verified")}
+                                  onClick={() => handleVerifyDoc(app.id, doc.id || doc.fileName, "Verified")}
                                   title="Verify this document"
                                 >
                                   <Check size={14} /> {isBusy && doc.status !== "Verified" ? "Verifying..." : "Verify"}
@@ -2269,8 +2269,8 @@ function ApprovalApplicationsView({
             onClose={() => setPreviewDoc(null)}
             collegeName={inst?.name}
             collegeId={inst?.collegeId}
-            onVerifyDoc={(doc) => handleVerifyDoc(app.id, doc.id, "Verified")}
-            onRejectDoc={(doc, remarks) => handleVerifyDoc(app.id, doc.id, "Not Verified", remarks)}
+            onVerifyDoc={(doc) => handleVerifyDoc(app.id, doc.id || doc.fileName, "Verified")}
+            onRejectDoc={(doc, remarks) => handleVerifyDoc(app.id, doc.id || doc.fileName, "Not Verified", remarks)}
           />
         )}
       </div>
