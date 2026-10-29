@@ -15,6 +15,8 @@ import {
   checkTopicAllowed,
   resolveContextualQuery,
 } from "../services/chatbotService";
+import { classifyUserQuestion } from "../services/questionClassifier";
+import { generatePortalGuidanceAnswer } from "../services/portalResponseSynthesizer";
 
 const router = Router();
 
@@ -78,13 +80,17 @@ router.post("/query", requireAuth, async (req: Request, res: Response) => {
       .reverse()
       .map((m) => ({ role: m.role, content: m.content }));
 
-    // 3. Lightweight Intent Detection BEFORE handbook search or LLM calls
-    const intentResult = detectUserIntent(message, history);
+    // 3. Robust Intent & Knowledge Source Classification
+    const classification = classifyUserQuestion(
+      message,
+      userRole,
+      clientContext?.route || "/"
+    );
 
-    // 3a. Handle Pure Greetings (hi, hello, etc.) -> 0 handbook retrieval, 0 citations
-    if (intentResult.intent === "GREETING") {
+    // 3a. Handle Pure Greetings (hi, hello, bro, etc.) -> 0 handbook retrieval, 0 citations
+    if (classification.category === "GREETING") {
       const greetingReply =
-        intentResult.reply || "Hello! How can I help you with AICTE procedures or the portal today?";
+        classification.reply || "Hi! How can I help you use the AICTE Unified Portal today?";
 
       const userMsg = await ChatMessage.create({
         conversationId: conversation._id,
@@ -127,10 +133,10 @@ router.post("/query", requireAuth, async (req: Request, res: Response) => {
       });
     }
 
-    // 3b. Handle Basic Conversation (thank you, okay, bye, etc.) -> 0 handbook retrieval, 0 citations
-    if (intentResult.intent === "BASIC_CONVERSATION") {
+    // 3b. Handle Casual Conversation (thank you, okay, bye, etc.) -> 0 handbook retrieval, 0 citations
+    if (classification.category === "CASUAL_CONVERSATION") {
       const basicReply =
-        intentResult.reply || "You're welcome! Let me know if you need any assistance with AICTE procedures or the portal.";
+        classification.reply || "You're welcome! Let me know if you need any assistance with AICTE procedures or the portal.";
 
       const userMsg = await ChatMessage.create({
         conversationId: conversation._id,
@@ -174,7 +180,7 @@ router.post("/query", requireAuth, async (req: Request, res: Response) => {
     }
 
     // 3c. Handle Unrelated / Off-Topic -> EXACTLY "It is not under my coverage"
-    if (intentResult.intent === "UNRELATED" || !intentResult.allowed) {
+    if (classification.category === "UNRELATED") {
       const refusalText = "It is not under my coverage";
 
       const userMsg = await ChatMessage.create({
@@ -218,7 +224,7 @@ router.post("/query", requireAuth, async (req: Request, res: Response) => {
       });
     }
 
-    // 4. Save User Message for substantive AICTE inquiry
+    // 4. Save User Message for portal or regulatory inquiry
     const userMsg = await ChatMessage.create({
       conversationId: conversation._id,
       userId,
@@ -231,12 +237,54 @@ router.post("/query", requireAuth, async (req: Request, res: Response) => {
       attachments: attachment ? [attachment] : [],
     });
 
-    // 5. Context-aware follow-up resolution and clause retrieval
+    // 5. Gather Authenticated Live Portal Context
+    const portalContext = await resolveUserPortalContext(session, clientContext);
+
+    // 6. Handle Non-Handbook Categories directly via Portal Knowledge Base
+    if (
+      classification.primarySource === "PORTAL_GUIDE" ||
+      classification.primarySource === "GENERAL_DEFINITION" ||
+      (classification.primarySource === "LIVE_CONTEXT" && !classification.needsHandbookRetrieval)
+    ) {
+      const portalAnswer = generatePortalGuidanceAnswer({
+        userQuery: message,
+        classification,
+        portalContext,
+      });
+
+      const assistantMsg = await ChatMessage.create({
+        conversationId: conversation._id,
+        userId,
+        role: "assistant",
+        content: portalAnswer.content,
+        citations: portalAnswer.citations || [],
+        isRefusal: false,
+        modelConfigured: true,
+        portalContext: {
+          portal: portalContext.portal,
+          route: portalContext.currentRoute,
+          stage: portalContext.workflowStage,
+          applicationId: portalContext.applicationNumber,
+        },
+      });
+
+      conversation.lastMessageAt = new Date();
+      await conversation.save();
+
+      return res.json({
+        conversationId: conversation._id,
+        userMessageId: userMsg._id,
+        messageId: assistantMsg._id,
+        content: portalAnswer.content,
+        citations: portalAnswer.citations || [],
+        isRefusal: false,
+        modelConfigured: true,
+      });
+    }
+
+    // 7. Context-aware follow-up resolution and clause retrieval for Regulatory inquiries
     const { resolvedQuery } = resolveContextualQuery(message, history);
     const clauses = await retrieveRelevantClauses(resolvedQuery || message, 4);
-
-    // 6. Gather Authenticated Live Portal Context
-    const portalContext = await resolveUserPortalContext(session, clientContext);
 
     // 7. Generate Grounded AI / Dynamic Response with history
     const responsePayload = await generateChatbotResponse({
