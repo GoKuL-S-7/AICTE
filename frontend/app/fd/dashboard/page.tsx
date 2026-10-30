@@ -120,6 +120,7 @@ const NAV_ITEMS = [
   { id: "pending-verification", label: "Pending Verification", icon: FileCheck },
   { id: "approval-applications", label: "Approval Seeking Applications", icon: FileCheck },
   { id: "deposit-records", label: "Deposit Records", icon: Landmark },
+  { id: "release-applications", label: "Release Application", icon: FileOutput },
 ];
 
 export default function FDEmployeePortal() {
