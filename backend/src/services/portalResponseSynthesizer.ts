@@ -11,6 +11,7 @@
  */
 
 import { PORTAL_PAGES_KNOWLEDGE, PORTAL_TERMINOLOGY_KNOWLEDGE } from "./portalKnowledgeBase";
+import { FINANCIAL_KNOWLEDGE } from "./financialKnowledgeBase";
 import { ClassificationResult } from "./questionClassifier";
 
 export function generatePortalGuidanceAnswer({
@@ -33,9 +34,17 @@ export function generatePortalGuidanceAnswer({
     };
   }
 
-  // 2. GENERAL DEFINITIONS & BASIC KNOWLEDGE
+  // 2. BASIC FINANCIAL KNOWLEDGE & GENERAL DEFINITIONS
   if (classification.category === "GENERAL_DEFINITION" || classification.matchedTermKey) {
     const key = classification.matchedTermKey;
+    if (key && FINANCIAL_KNOWLEDGE[key]) {
+      const finInfo = FINANCIAL_KNOWLEDGE[key];
+      const portalNote = finInfo.portalContext ? `\n\n**In the AICTE Portal:**\n${finInfo.portalContext}` : "";
+      return {
+        content: `**${finInfo.term}**\n\n${finInfo.definition}${portalNote}`,
+        citations: [],
+      };
+    }
     if (key && PORTAL_TERMINOLOGY_KNOWLEDGE[key]) {
       const termInfo = PORTAL_TERMINOLOGY_KNOWLEDGE[key];
       return {
@@ -574,6 +583,41 @@ export function generatePortalGuidanceAnswer({
           `2. **Prepare Rectified Documents:** Obtain the updated authentic certificate, building approval plan, or sworn affidavit that directly satisfies the cited requirement.\n` +
           `3. **Re-upload in Approval Seeking:** Navigate to **Submit → Approval Seeking** (\`/institution/submit/approval\`), locate the deficient document slot, and upload the corrected PDF.\n` +
           `4. **Submit for Re-Scrutiny:** Click **Save / Submit Application** to return the file to the AICTE Finance Division for re-evaluation.`,
+        citations: [],
+      };
+    }
+
+    // How do I use the AICTE portal?
+    if (
+      q.includes("how do i use the aicte portal") ||
+      q.includes("how to use the aicte portal") ||
+      q.includes("how do i use the portal") ||
+      q.includes("how to use the portal") ||
+      q.includes("how do i use portal") ||
+      q.includes("how to use portal") ||
+      q === "how do i use the aicte portal?" ||
+      q === "how to use aicte portal"
+    ) {
+      if (role === "INSTITUTION") {
+        return {
+          content:
+            `### How to Use the AICTE Unified Portal (Institution Guide):\n\n` +
+            `1. **Dashboard Overview (\`/institution/dashboard\`):** Check your institutional approval status, FDR metrics, and active notifications.\n` +
+            `2. **Submit Approval Documents (\`/institution/submit/approval\`):** Upload all 12 mandatory statutory certificates for LoA or annual EoA.\n` +
+            `3. **Submit FDR / Payments (\`/institution/submit/payment\`):** Record your bank FDR receipt and deposit information under joint lien with Regional Officer, AICTE.\n` +
+            `4. **Monitor Deposit Details & Clearances (\`/institution/receive/deposit\`):** Track active FDR lock-in status and cross-bureau clearances from PGRC and Vigilance.\n` +
+            `5. **Download Official Documents (\`/institution/receive/loa-eoa\`):** Download approved Letters of Approval (LoA) or Extension of Approval (EoA).\n` +
+            `6. **Request Deposit Release (\`/institution/submit/release\`):** Apply for return of matured FDR security deposits upon completing the lock-in term.`,
+          citations: [],
+        };
+      }
+      return {
+        content:
+          `### How to Use the AICTE Unified Portal:\n\n` +
+          `1. **Institutions:** Submit statutory approval documents, record security deposit FDRs, track verification remarks, and apply for deposit release.\n` +
+          `2. **Finance Division (FD):** Scrutinize institution applications, verify FDR receipts, and process deposit clearances.\n` +
+          `3. **PGRC & Vigilance:** Adjudicate complaints and maintain integrity clearances.\n` +
+          `4. **Public & Students:** Lodge and track grievances at \`/complaints/pgrc/track\`.`,
         citations: [],
       };
     }

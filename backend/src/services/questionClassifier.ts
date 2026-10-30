@@ -121,15 +121,81 @@ export function classifyUserQuestion(
     };
   }
 
-  // 4. GENERAL DEFINITIONS & TERMINOLOGY (Category E)
-  // e.g. "What is a handbook?", "what is handbook", "what is fdr", "what is eoa", "what is loa", "what is complaint outcome letter"
+  // 4. BASIC FINANCIAL & GENERAL DEFINITIONS (Category E)
+  // Check financial terminology first (maturity date, difference between deposit date and maturity date, maturity amount, etc.)
+  if (
+    lower.includes("maturity date") &&
+    (lower.includes("deposit date") || lower.includes("difference"))
+  ) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "deposit_date_vs_maturity_date",
+    };
+  }
+
+  if (lower.includes("maturity date")) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "maturity_date",
+    };
+  }
+
+  if (lower.includes("maturity amount")) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "maturity_amount",
+    };
+  }
+
+  if (lower.includes("principal amount") || lower.includes("what is principal")) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "principal_amount",
+    };
+  }
+
+  if (lower.includes("compound interest") || lower.includes("simple interest")) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "simple_vs_compound_interest",
+    };
+  }
+
+  if (lower.includes("premature withdrawal") || lower.includes("early withdrawal") || lower.includes("penalty for breaking fd")) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "premature_withdrawal",
+    };
+  }
+
+  if (lower.includes("fd renewal") || lower.includes("renew fd") || lower.includes("fd closure") || lower.includes("close fd")) {
+    return {
+      category: "GENERAL_DEFINITION",
+      primarySource: "GENERAL_DEFINITION",
+      needsHandbookRetrieval: false,
+      matchedTermKey: "fd_renewal_and_closure",
+    };
+  }
+
   const isDefinitionPattern =
     /^what\s+(is|are|does\s+mean|means|do\s+you\s+mean\s+by)\s+(a\s+|an\s+|the\s+)?([a-z0-9\s/_\-]+)\??$/i.test(lower) ||
     /^explain\s+([a-z0-9\s/_\-]+)\??$/i.test(lower) ||
     /^meaning\s+of\s+([a-z0-9\s/_\-]+)\??$/i.test(lower);
 
   if (isDefinitionPattern) {
-    if (lower === "what is fd" || lower === "what is fd?" || lower.includes("finance division")) {
+    if (lower === "what is fd" || lower === "what is fd?" || lower === "what is an fd" || lower === "what is an fd?" || lower.includes("fixed deposit")) {
       return {
         category: "GENERAL_DEFINITION",
         primarySource: "GENERAL_DEFINITION",
@@ -388,6 +454,9 @@ export function classifyUserQuestion(
     lower.includes("2024-27") ||
     lower.includes("2024–27") ||
     lower.includes("aph") ||
+    lower.includes("handbook rule") ||
+    lower.includes("handbook rules") ||
+    lower.includes("rules in handbook") ||
     lower.includes("cadre ratio") ||
     lower.includes("carpet area") ||
     lower.includes("lock-in period") ||
